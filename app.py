@@ -19,16 +19,19 @@ def health():
 @app.route('/generate', methods=['POST'])
 def generate():
     try:
-        data = request.get_json(force=True)
+        data = request.get_json(force=True, silent=True) or {}
         slips = data.get('slips', [])
 
-        if isinstance(slips, str):
+        # Handle all possible input types
+        if isinstance(slips, str) and slips:
             slips = json.loads(slips)
+        elif not isinstance(slips, list):
+            slips = []
 
         if not slips:
-            return jsonify({'error': 'No slips provided'}), 400
+            return jsonify({'error': 'No slips provided', 'received': str(data)}), 400
 
-        print(f"Generating canvas for {len(slips)} slips")
+        print(f"Generating canvas for {len(slips)} slips: {slips}")
         images = generate_images(slips)
         print(f"Canvas generated: {len(images)} images")
 
@@ -49,17 +52,14 @@ def generate():
                 timeout=60
             )
             result = response.json()
-            print(f"Cloudinary full response keys: {list(result.keys())}")
-            print(f"Cloudinary secure_url: {result.get('secure_url', 'NOT FOUND')}")
+            print(f"Cloudinary keys: {list(result.keys())}")
 
             if 'secure_url' in result:
                 image_urls.append(result['secure_url'])
             else:
-                # Build URL manually from public_id
                 public_id = result.get('public_id', '')
                 if public_id:
                     manual_url = f"https://res.cloudinary.com/{CLOUDINARY_CLOUD}/image/upload/{public_id}.png"
-                    print(f"Using manual URL: {manual_url}")
                     image_urls.append(manual_url)
                 else:
                     return jsonify({'error': f'Cloudinary error: {result}'}), 500
