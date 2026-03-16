@@ -5,6 +5,7 @@ import json
 import os
 import requests
 import traceback
+import time
 from canvas_generator import generate_images
 
 app = Flask(__name__)
@@ -39,13 +40,15 @@ def generate():
             img.save(buffer, format='PNG')
             buffer.seek(0)
             b64 = base64.b64encode(buffer.read()).decode('utf-8')
-            print(f"Image {i+1} base64 length: {len(b64)}")
+
+            public_id = f"mm_canvas_{int(time.time())}_{i}"
 
             response = requests.post(
                 f'https://api.cloudinary.com/v1_1/{CLOUDINARY_CLOUD}/image/upload',
                 data={
                     'file': f'data:image/png;base64,{b64}',
-                    'upload_preset': CLOUDINARY_PRESET
+                    'upload_preset': CLOUDINARY_PRESET,
+                    'public_id': public_id
                 },
                 timeout=60
             )
