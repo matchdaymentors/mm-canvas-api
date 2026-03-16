@@ -5,7 +5,6 @@ import json
 import os
 import requests
 import traceback
-import time
 from canvas_generator import generate_images
 
 app = Flask(__name__)
@@ -41,24 +40,29 @@ def generate():
             buffer.seek(0)
             b64 = base64.b64encode(buffer.read()).decode('utf-8')
 
-            public_id = f"mm_canvas_{int(time.time())}_{i}"
-
             response = requests.post(
                 f'https://api.cloudinary.com/v1_1/{CLOUDINARY_CLOUD}/image/upload',
-                data={
+                json={
                     'file': f'data:image/png;base64,{b64}',
-                    'upload_preset': CLOUDINARY_PRESET,
-                    'public_id': public_id
+                    'upload_preset': CLOUDINARY_PRESET
                 },
                 timeout=60
             )
-            print(f"Cloudinary response: {response.status_code} - {response.text[:200]}")
             result = response.json()
+            print(f"Cloudinary full response keys: {list(result.keys())}")
+            print(f"Cloudinary secure_url: {result.get('secure_url', 'NOT FOUND')}")
 
             if 'secure_url' in result:
                 image_urls.append(result['secure_url'])
             else:
-                return jsonify({'error': f'Cloudinary error: {result}'}), 500
+                # Build URL manually from public_id
+                public_id = result.get('public_id', '')
+                if public_id:
+                    manual_url = f"https://res.cloudinary.com/{CLOUDINARY_CLOUD}/image/upload/{public_id}.png"
+                    print(f"Using manual URL: {manual_url}")
+                    image_urls.append(manual_url)
+                else:
+                    return jsonify({'error': f'Cloudinary error: {result}'}), 500
 
         return jsonify({
             'success': True,
