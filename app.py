@@ -4,6 +4,7 @@ import io
 import json
 import os
 import requests
+import traceback
 from canvas_generator import generate_images
 
 app = Flask(__name__)
@@ -27,25 +28,30 @@ def generate():
         if not slips:
             return jsonify({'error': 'No slips provided'}), 400
 
+        print(f"Generating canvas for {len(slips)} slips")
         images = generate_images(slips)
+        print(f"Canvas generated: {len(images)} images")
 
         image_urls = []
-        for img in images:
-            # Convert to base64
+        for i, img in enumerate(images):
+            print(f"Uploading image {i+1} to Cloudinary...")
             buffer = io.BytesIO()
             img.save(buffer, format='PNG')
             buffer.seek(0)
             b64 = base64.b64encode(buffer.read()).decode('utf-8')
+            print(f"Image {i+1} base64 length: {len(b64)}")
 
-            # Upload to Cloudinary
             response = requests.post(
                 f'https://api.cloudinary.com/v1_1/{CLOUDINARY_CLOUD}/image/upload',
                 data={
                     'file': f'data:image/png;base64,{b64}',
                     'upload_preset': CLOUDINARY_PRESET
-                }
+                },
+                timeout=60
             )
+            print(f"Cloudinary response: {response.status_code} - {response.text[:200]}")
             result = response.json()
+
             if 'secure_url' in result:
                 image_urls.append(result['secure_url'])
             else:
@@ -58,7 +64,9 @@ def generate():
         })
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        error_msg = traceback.format_exc()
+        print(f"ERROR: {error_msg}")
+        return jsonify({'error': str(e), 'traceback': error_msg}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
