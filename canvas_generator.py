@@ -301,8 +301,7 @@ def generate_canvas(slips, image_index=0, total_images=1):
 
         # ── TOTAL ODDS SECTION — hero element
         f_odds_lbl = F('OB', 18)          # bigger label
-        f_odds_val = F('BB', 80)          # massive odds number
-        
+
         odds_lbl_y = cy + 98
         # Label with background pill for contrast
         lbl = "TOTAL ODDS"
@@ -317,22 +316,69 @@ def generate_canvas(slips, image_index=0, total_images=1):
         draw.text((lbl_x, odds_lbl_y), lbl, font=f_odds_lbl, fill=GREY)
 
         # Odds value — gold, massive, glowing
-        odds_str = str(slip.get('odds','—'))
+        odds_raw = str(slip.get('odds','—'))
         odds_y   = odds_lbl_y + 24
 
-        # Glow layers
+        # Split integer and decimal for clear rendering (decimal always visible)
+        if '.' in odds_raw:
+            odds_int_str, odds_dec_frac = odds_raw.split('.', 1)
+            odds_dec_str = '.' + odds_dec_frac
+        else:
+            odds_int_str = odds_raw
+            odds_dec_str = ''
+
+        # ── Auto-fit: shrink font until full odds string fits inside card
+        max_odds_width = cw - 36   # 18px margin each side
+        odds_font_size = 80
+        while odds_font_size > 28:
+            f_int  = F('BB', odds_font_size)
+            f_dec  = F('BB', max(22, odds_font_size - 20))
+            int_bb = draw.textbbox((0, 0), odds_int_str, font=f_int)
+            int_w  = int_bb[2] - int_bb[0]
+            if odds_dec_str:
+                dec_bb = draw.textbbox((0, 0), odds_dec_str, font=f_dec)
+                dec_w  = dec_bb[2] - dec_bb[0]
+            else:
+                dec_w = 0
+            if int_w + dec_w + (2 if odds_dec_str else 0) <= max_odds_width:
+                break
+            odds_font_size -= 4
+
+        f_int = F('BB', odds_font_size)
+        f_dec = F('BB', max(22, odds_font_size - 20))
+
+        # Measure widths for layout
+        int_bb2 = draw.textbbox((0, 0), odds_int_str, font=f_int)
+        int_w2  = int_bb2[2] - int_bb2[0]
+        int_h2  = int_bb2[3] - int_bb2[1]
+
+        # Draw integer part — glow + shadow + main
         for go in [(3,3,40),(2,2,70),(1,1,100)]:
             gimg = Image.new("RGBA",(W,H),(0,0,0,0))
             gd   = ImageDraw.Draw(gimg)
-            gd.text((cx+18+go[0], odds_y+go[1]), odds_str,
-                    font=f_odds_val, fill=(212,175,55,go[2]))
+            gd.text((cx+18+go[0], odds_y+go[1]), odds_int_str,
+                    font=f_int, fill=(212,175,55,go[2]))
             img  = Image.alpha_composite(img.convert("RGBA"), gimg).convert("RGB")
             draw = ImageDraw.Draw(img)
+        draw.text((cx+20, odds_y+3), odds_int_str, font=f_int, fill=(0,0,0))
+        draw.text((cx+18, odds_y),   odds_int_str, font=f_int, fill=GOLD)
 
-        # Shadow
-        draw.text((cx+20, odds_y+3), odds_str, font=f_odds_val, fill=(0,0,0))
-        # Main odds
-        draw.text((cx+18, odds_y), odds_str, font=f_odds_val, fill=GOLD)
+        # Draw decimal part — vertically aligned to bottom of integer
+        if odds_dec_str:
+            dec_x = cx + 18 + int_w2 + 2
+            # Align decimal baseline to integer baseline
+            dec_bb2 = draw.textbbox((0, 0), odds_dec_str, font=f_dec)
+            dec_h2  = dec_bb2[3] - dec_bb2[1]
+            dec_y   = odds_y + int_h2 - dec_h2   # baseline-align
+            for go in [(2,2,40),(1,1,70)]:
+                gimg = Image.new("RGBA",(W,H),(0,0,0,0))
+                gd   = ImageDraw.Draw(gimg)
+                gd.text((dec_x+go[0], dec_y+go[1]), odds_dec_str,
+                        font=f_dec, fill=(212,175,55,go[2]))
+                img  = Image.alpha_composite(img.convert("RGBA"), gimg).convert("RGB")
+                draw = ImageDraw.Draw(img)
+            draw.text((dec_x+2, dec_y+2), odds_dec_str, font=f_dec, fill=(0,0,0))
+            draw.text((dec_x,   dec_y),   odds_dec_str, font=f_dec, fill=GOLD)
 
         # ── BOTTOM INFO ROW — clear, readable ────────────────────────────────
         by = cy + ch - 40
