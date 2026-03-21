@@ -407,12 +407,8 @@ def generate_canvas(slips, image_index=0, total_images=1):
 
 
 def generate_images(slips_data):
-    n = len(slips_data)
-    if n <= 4:
-        return [generate_canvas(slips_data, 0, 1)]
-    mid = math.ceil(n/2)
-    return [generate_canvas(slips_data[:mid], 0, 2),
-            generate_canvas(slips_data[mid:],  1, 2)]
+    # Always generate a single image with all slips
+    return [generate_canvas(slips_data, 0, 1)]
 
 
 if __name__ == '__main__':
