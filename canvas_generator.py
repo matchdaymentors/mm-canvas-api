@@ -457,6 +457,224 @@ def generate_images(slips_data):
     return [generate_canvas(slips_data, 0, 1)]
 
 
+# ── Story generator (1080×1920 — Instagram & Facebook Stories) ───────────────
+def generate_story(slips, image_index=0, total_images=1):
+    """Generate 1080x1920 story format for Instagram/Facebook Stories."""
+    W, H = 1080, 1920
+
+    bg  = make_pitch_bg(W, H)
+    ov  = Image.new("RGBA", (W, H), (8, 26, 14, 220))
+    img = Image.alpha_composite(bg.convert("RGBA"), ov).convert("RGB")
+    draw = ImageDraw.Draw(img)
+
+    # Vignette
+    vig = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    vd  = ImageDraw.Draw(vig)
+    for i in range(100):
+        alpha = int(140 * (i/100)**2)
+        vd.rectangle([i, i, W-i, H-i], outline=(0, 0, 0, alpha), width=1)
+    img  = Image.alpha_composite(img.convert("RGBA"), vig).convert("RGB")
+    draw = ImageDraw.Draw(img)
+
+    # Gold top bar
+    draw.rectangle([0, 0, W, 10], fill=GOLD)
+
+    # ── Logo ─────────────────────────────────────────────────────────────────
+    logo_path = os.path.join(FONT_DIR, 'logo_white.png')
+    logo_bottom = 30
+    if os.path.exists(logo_path):
+        logo   = Image.open(logo_path).convert("RGBA")
+        logo_h = 110
+        logo_w = int(logo_h * logo.width / logo.height)
+        logo   = logo.resize((logo_w, logo_h), Image.LANCZOS)
+        lx     = (W - logo_w) // 2
+        img.paste(logo, (lx, 20), logo)
+        logo_bottom = 20 + logo_h
+        draw = ImageDraw.Draw(img)
+
+    # Gold separator
+    sep_y = logo_bottom + 12
+    draw.rectangle([60, sep_y, W-60, sep_y+2], fill=GOLD_DIM)
+
+    # ── Headline ──────────────────────────────────────────────────────────────
+    header_y   = sep_y + 18
+    f_headline = F('BB', 68)
+    n          = len(slips)
+    hl_text    = "TODAY'S CARD"
+    if total_images > 1:
+        hl_text = f"TODAY'S CARD  ·  {image_index+1}/{total_images}"
+    bb = draw.textbbox((0, 0), hl_text, font=f_headline)
+    draw.text(((W-(bb[2]-bb[0]))//2, header_y), hl_text, font=f_headline, fill=GOLD)
+
+    f_count = F('OB', 28)
+    sc_text = f"{n} SLIP{'S' if n > 1 else ''}  ·  TODAY'S SELECTIONS"
+    bb2 = draw.textbbox((0, 0), sc_text, font=f_count)
+    draw.text(((W-(bb2[2]-bb2[0]))//2, header_y+80), sc_text, font=f_count, fill=GREY)
+
+    # ── Cards (single column, stacked) ────────────────────────────────────────
+    CTA_H     = 220
+    TOP       = header_y + 140
+    BOT_MARG  = CTA_H + 20
+    MARGIN    = 36
+    GAP       = 18
+
+    avail_h   = H - TOP - BOT_MARG
+    cw        = W - 2 * MARGIN
+    ch        = min((avail_h - (n-1)*GAP) // max(n, 1), 360)
+    total_h   = n*ch + (n-1)*GAP
+    sy        = TOP + (avail_h - total_h) // 2
+
+    for i, slip in enumerate(slips):
+        cx = MARGIN
+        cy = sy + i*(ch+GAP)
+
+        # Shadow
+        draw.rounded_rectangle([cx+6, cy+6, cx+cw+6, cy+ch+6], radius=20, fill=(3,10,6))
+        # Card body
+        draw.rounded_rectangle([cx, cy, cx+cw, cy+ch], radius=20, fill=CARD_BG)
+
+        # Gradient
+        for yi in range(ch//2, ch, 3):
+            alpha = int(60*(yi-ch//2)/(ch//2))
+            strip = Image.new("RGBA", (cw, 3), (0,0,0,alpha))
+            img.paste(strip, (cx, cy+yi), strip)
+        draw = ImageDraw.Draw(img)
+
+        # Border
+        draw.rounded_rectangle([cx,cy,cx+cw,cy+ch], radius=20, outline=(20,90,42), width=5)
+        draw.rounded_rectangle([cx+2,cy+2,cx+cw-2,cy+ch-2], radius=18, outline=CARD_BORDER, width=2)
+        # Gold stripe
+        draw.rounded_rectangle([cx+4,cy+4,cx+cw-4,cy+12], radius=4, fill=GOLD)
+
+        # Slip number
+        draw.text((cx+20, cy+20), f"SLIP {i+1}", font=F('OB', 17), fill=GREY)
+
+        # Betano logo
+        draw_betano_logo(img, cx+cw-160, cy+14, w=144, h=44)
+        draw = ImageDraw.Draw(img)
+
+        # Bet type
+        f_btype = F('BB', 38)
+        bt = str(slip.get('bet_type','COMBO')).upper()
+        if len(bt) > 20: bt = bt[:20]+'…'
+        bb3 = draw.textbbox((0,0), bt, font=f_btype)
+        tw3 = bb3[2]-bb3[0]
+        draw.text((cx+(cw-tw3)//2+2, cy+62+2), bt, font=f_btype, fill=(0,0,0))
+        draw.text((cx+(cw-tw3)//2,   cy+62),   bt, font=f_btype, fill=WHITE)
+
+        # ── Odds (same auto-fit + split rendering) ──────────────────────────
+        odds_raw = str(slip.get('odds','—'))
+        odds_y   = cy + 110
+
+        if '.' in odds_raw:
+            odds_int_str, odds_dec_frac = odds_raw.split('.', 1)
+            odds_dec_str = '.' + odds_dec_frac
+        else:
+            odds_int_str = odds_raw
+            odds_dec_str = ''
+
+        max_odds_width = cw - 36
+        odds_font_size = 88
+        while odds_font_size > 28:
+            f_int = F('BB', odds_font_size)
+            f_dec = F('BB', max(22, odds_font_size - 20))
+            int_bb = draw.textbbox((0,0), odds_int_str, font=f_int)
+            int_w  = int_bb[2]-int_bb[0]
+            dec_w  = 0
+            if odds_dec_str:
+                dec_bb = draw.textbbox((0,0), odds_dec_str, font=f_dec)
+                dec_w  = dec_bb[2]-dec_bb[0]
+            if int_w + dec_w + (2 if odds_dec_str else 0) <= max_odds_width:
+                break
+            odds_font_size -= 4
+
+        f_int = F('BB', odds_font_size)
+        f_dec = F('BB', max(22, odds_font_size - 20))
+        int_bb2 = draw.textbbox((0,0), odds_int_str, font=f_int)
+        int_w2  = int_bb2[2]-int_bb2[0]
+        int_h2  = int_bb2[3]-int_bb2[1]
+
+        for go in [(3,3,40),(2,2,70),(1,1,100)]:
+            gimg = Image.new("RGBA",(W,H),(0,0,0,0))
+            gd   = ImageDraw.Draw(gimg)
+            gd.text((cx+18+go[0], odds_y+go[1]), odds_int_str, font=f_int, fill=(212,175,55,go[2]))
+            img  = Image.alpha_composite(img.convert("RGBA"), gimg).convert("RGB")
+            draw = ImageDraw.Draw(img)
+        draw.text((cx+20, odds_y+3), odds_int_str, font=f_int, fill=(0,0,0))
+        draw.text((cx+18, odds_y),   odds_int_str, font=f_int, fill=GOLD)
+
+        if odds_dec_str:
+            dec_x  = cx + 18 + int_w2 + 2
+            dec_bb2= draw.textbbox((0,0), odds_dec_str, font=f_dec)
+            dec_h2 = dec_bb2[3]-dec_bb2[1]
+            dec_y  = odds_y + int_h2 - dec_h2
+            for go in [(2,2,40),(1,1,70)]:
+                gimg = Image.new("RGBA",(W,H),(0,0,0,0))
+                gd   = ImageDraw.Draw(gimg)
+                gd.text((dec_x+go[0], dec_y+go[1]), odds_dec_str, font=f_dec, fill=(212,175,55,go[2]))
+                img  = Image.alpha_composite(img.convert("RGBA"), gimg).convert("RGB")
+                draw = ImageDraw.Draw(img)
+            draw.text((dec_x+2, dec_y+2), odds_dec_str, font=f_dec, fill=(0,0,0))
+            draw.text((dec_x,   dec_y),   odds_dec_str, font=f_dec, fill=GOLD)
+
+        # Bottom info row
+        by = cy + ch - 48
+        draw.rounded_rectangle([cx+4, by-8, cx+cw-4, cy+ch-8], radius=12, fill=(8,28,14))
+
+        legs = slip.get('legs','')
+        if legs:
+            draw.ellipse([cx+18, by+3, cx+32, by+17], fill=ACCENT_GREEN)
+            draw.text((cx+40, by), f"{legs} SELECTIONS", font=F('OB', 19), fill=WHITE)
+
+        stake_str = f"STAKE  {slip.get('stake','5%')}"
+        sbb = draw.textbbox((0,0), stake_str, font=F('BB', 22))
+        draw.text((cx+cw-(sbb[2]-sbb[0])-20, by-1), stake_str, font=F('BB', 22), fill=GOLD)
+
+    # ── CTA section (bottom) ─────────────────────────────────────────────────
+    cta_y = H - CTA_H - 10
+
+    # Dark BG gradient
+    for py in range(cta_y, H-10):
+        t  = (py-cta_y) / max(H-10-cta_y, 1)
+        rc = int(6+4*t); gc = int(16+8*t); bc = int(10+4*t)
+        draw.line([(0,py),(W,py)], fill=(rc,gc,bc))
+
+    draw.rectangle([0, cta_y, W, cta_y+3], fill=GOLD)
+
+    # Gold CTA button
+    MARGIN_BTN = 50
+    btn_y = cta_y + 22
+    btn_h = 78
+    draw.rounded_rectangle([MARGIN_BTN, btn_y, W-MARGIN_BTN, btn_y+btn_h],
+                            radius=39, fill=GOLD)
+    f_btn = F('BB', 28)
+    btn_text = "SEE FULL ANALYSIS ON PATREON"
+    btn_bb   = draw.textbbox((0,0), btn_text, font=f_btn)
+    btn_tw   = btn_bb[2]-btn_bb[0]
+    btn_th   = btn_bb[3]-btn_bb[1]
+    draw.text(((W-btn_tw)//2, btn_y+(btn_h-btn_th)//2), btn_text, font=f_btn, fill=(10,34,18))
+
+    # URL
+    url_text = "patreon.com/Matchdaymentors"
+    url_bb   = draw.textbbox((0,0), url_text, font=F('OR',22))
+    draw.text(((W-(url_bb[2]-url_bb[0]))//2, btn_y+btn_h+14), url_text, font=F('OR',22), fill=GREY)
+
+    # Social proof line
+    mem_text = "Join 500+ smart bettors  ·  Only £10/month"
+    mem_bb   = draw.textbbox((0,0), mem_text, font=F('OB',24))
+    draw.text(((W-(mem_bb[2]-mem_bb[0]))//2, btn_y+btn_h+46), mem_text, font=F('OB',24), fill=GOLD)
+
+    # Gold bottom bar
+    draw.rectangle([0, H-10, W, H], fill=GOLD)
+
+    return img
+
+
+def generate_story_images(slips_data):
+    """Generate story format (1080x1920) for all slips in one image."""
+    return [generate_story(slips_data, 0, 1)]
+
+
 if __name__ == '__main__':
     test3 = [
         {"bet_type": "4-Fold", "odds": 2.70, "stake": "5%", "legs": 4},
