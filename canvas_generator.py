@@ -241,6 +241,7 @@ def generate_canvas(slips, image_index=0, total_images=1):
     cw   = (avail_w - (cols-1)*GAP) // cols
     ch   = (avail_h - (rows-1)*GAP) // rows
     ch   = min(ch, 300)
+    scale = min(1.0, ch / 300.0)
 
     total_ch = rows*ch + (rows-1)*GAP
     sy = TOP + (avail_h - total_ch) // 2
@@ -289,20 +290,21 @@ def generate_canvas(slips, image_index=0, total_images=1):
         draw = ImageDraw.Draw(img)
 
         # ── BET TYPE — big, white, very readable
-        f_btype = F('BB', 34)
+        f_btype = F('BB', max(22, int(34 * scale)))
         bt = str(slip.get('bet_type','COMBO')).upper()
         if len(bt) > 20: bt = bt[:20]+'…'
         bb3 = draw.textbbox((0,0), bt, font=f_btype)
         tw3 = bb3[2]-bb3[0]
+        btype_y = cy + max(36, int(56 * scale))
         # Text shadow for depth
-        draw.text((cx+(cw-tw3)//2+2, cy+56+2), bt, font=f_btype,
+        draw.text((cx+(cw-tw3)//2+2, btype_y+2), bt, font=f_btype,
                   fill=(0,0,0))
-        draw.text((cx+(cw-tw3)//2, cy+56), bt, font=f_btype, fill=WHITE)
+        draw.text((cx+(cw-tw3)//2, btype_y), bt, font=f_btype, fill=WHITE)
 
         # ── TOTAL ODDS SECTION — hero element
-        f_odds_lbl = F('OB', 18)          # bigger label
+        f_odds_lbl = F('OB', max(14, int(18 * scale)))
 
-        odds_lbl_y = cy + 98
+        odds_lbl_y = cy + max(60, int(98 * scale))
         # Label with background pill for contrast
         lbl = "TOTAL ODDS"
         lbl_bb = draw.textbbox((0,0), lbl, font=f_odds_lbl)
@@ -317,7 +319,9 @@ def generate_canvas(slips, image_index=0, total_images=1):
 
         # Odds value — gold, massive, glowing
         odds_raw = str(slip.get('odds','—'))
-        odds_y   = odds_lbl_y + 24
+        odds_y = odds_lbl_y + max(16, int(24 * scale))
+        by = cy + ch - 40
+        max_h_for_odds = max(20, by - odds_y - 6)
 
         # Split integer and decimal for clear rendering (decimal always visible)
         if '.' in odds_raw:
@@ -327,20 +331,21 @@ def generate_canvas(slips, image_index=0, total_images=1):
             odds_int_str = odds_raw
             odds_dec_str = ''
 
-        # ── Auto-fit: shrink font until full odds string fits inside card
+        # ── Auto-fit: shrink font until odds fit (width AND height)
         max_odds_width = cw - 36   # 18px margin each side
         odds_font_size = 80
-        while odds_font_size > 28:
+        while odds_font_size > 22:
             f_int  = F('BB', odds_font_size)
-            f_dec  = F('BB', max(22, odds_font_size - 20))
+            f_dec  = F('BB', max(18, odds_font_size - 20))
             int_bb = draw.textbbox((0, 0), odds_int_str, font=f_int)
             int_w  = int_bb[2] - int_bb[0]
+            int_h  = int_bb[3] - int_bb[1]
             if odds_dec_str:
                 dec_bb = draw.textbbox((0, 0), odds_dec_str, font=f_dec)
                 dec_w  = dec_bb[2] - dec_bb[0]
             else:
                 dec_w = 0
-            if int_w + dec_w + (2 if odds_dec_str else 0) <= max_odds_width:
+            if int_w + dec_w + (2 if odds_dec_str else 0) <= max_odds_width and int_h <= max_h_for_odds:
                 break
             odds_font_size -= 4
 
@@ -521,6 +526,7 @@ def generate_story(slips, image_index=0, total_images=1):
     avail_h   = H - TOP - BOT_MARG
     cw        = W - 2 * MARGIN
     ch        = min((avail_h - (n-1)*GAP) // max(n, 1), 360)
+    story_scale = min(1.0, ch / 360.0)
     total_h   = n*ch + (n-1)*GAP
     sy        = TOP + (avail_h - total_h) // 2
 
@@ -554,17 +560,18 @@ def generate_story(slips, image_index=0, total_images=1):
         draw = ImageDraw.Draw(img)
 
         # Bet type
-        f_btype = F('BB', 38)
+        f_btype = F('BB', max(24, int(38 * story_scale)))
         bt = str(slip.get('bet_type','COMBO')).upper()
         if len(bt) > 20: bt = bt[:20]+'…'
         bb3 = draw.textbbox((0,0), bt, font=f_btype)
         tw3 = bb3[2]-bb3[0]
-        draw.text((cx+(cw-tw3)//2+2, cy+62+2), bt, font=f_btype, fill=(0,0,0))
-        draw.text((cx+(cw-tw3)//2,   cy+62),   bt, font=f_btype, fill=WHITE)
+        sbtype_y = cy + max(40, int(62 * story_scale))
+        draw.text((cx+(cw-tw3)//2+2, sbtype_y+2), bt, font=f_btype, fill=(0,0,0))
+        draw.text((cx+(cw-tw3)//2,   sbtype_y),   bt, font=f_btype, fill=WHITE)
 
         # ── Odds (same auto-fit + split rendering) ──────────────────────────
         odds_raw = str(slip.get('odds','—'))
-        odds_y   = cy + 110
+        odds_y = cy + max(70, int(110 * story_scale))
 
         if '.' in odds_raw:
             odds_int_str, odds_dec_frac = odds_raw.split('.', 1)
@@ -573,18 +580,21 @@ def generate_story(slips, image_index=0, total_images=1):
             odds_int_str = odds_raw
             odds_dec_str = ''
 
+        story_by = cy + ch - 48
+        story_max_h = max(20, story_by - odds_y - 6)
         max_odds_width = cw - 36
         odds_font_size = 88
-        while odds_font_size > 28:
+        while odds_font_size > 22:
             f_int = F('BB', odds_font_size)
-            f_dec = F('BB', max(22, odds_font_size - 20))
+            f_dec = F('BB', max(18, odds_font_size - 20))
             int_bb = draw.textbbox((0,0), odds_int_str, font=f_int)
             int_w  = int_bb[2]-int_bb[0]
+            int_h  = int_bb[3]-int_bb[1]
             dec_w  = 0
             if odds_dec_str:
                 dec_bb = draw.textbbox((0,0), odds_dec_str, font=f_dec)
                 dec_w  = dec_bb[2]-dec_bb[0]
-            if int_w + dec_w + (2 if odds_dec_str else 0) <= max_odds_width:
+            if int_w + dec_w + (2 if odds_dec_str else 0) <= max_odds_width and int_h <= story_max_h:
                 break
             odds_font_size -= 4
 
