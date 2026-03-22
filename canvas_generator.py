@@ -685,6 +685,185 @@ def generate_story_images(slips_data):
     return [generate_story(slips_data, 0, 1)]
 
 
+
+# ── Custom card generator (branded MM post/story cards) ────────────────────
+
+def _wrap_text_custom(text, font, draw, max_width):
+    """Word-wrap text to fit within max_width pixels."""
+    words = text.split()
+    lines = []
+    current = ""
+    for word in words:
+        test = (current + " " + word).strip()
+        if draw.textlength(test, font=font) <= max_width:
+            current = test
+        else:
+            if current:
+                lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    return lines if lines else [""]
+
+
+def generate_custom_card(title, subtitle=""):
+    """Generate a 1080x1080 branded MM post card for custom/promo content."""
+    W, H = 1080, 1080
+    img = Image.new("RGB", (W, H))
+    draw = ImageDraw.Draw(img)
+    # Dark gradient background
+    for y in range(H):
+        t = y / H
+        r = int(BG_TOP[0]*(1-t) + BG_BOT[0]*t)
+        gv = int(BG_TOP[1]*(1-t) + BG_BOT[1]*t)
+        b = int(BG_TOP[2]*(1-t) + BG_BOT[2]*t)
+        draw.line([(0, y), (W, y)], fill=(r, gv, b))
+    # Vignette
+    vig = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    vd = ImageDraw.Draw(vig)
+    for i in range(80):
+        alpha = int(160 * (i/80)**2)
+        vd.rectangle([i, i, W-i, H-i], outline=(0, 0, 0, alpha), width=1)
+    img = Image.alpha_composite(img.convert("RGBA"), vig).convert("RGB")
+    draw = ImageDraw.Draw(img)
+    # Green accent bars
+    draw.rectangle([0, 0, W, 8], fill=ACCENT_GREEN)
+    draw.rectangle([0, H-8, W, H], fill=ACCENT_GREEN)
+    # Logo
+    logo_path = os.path.join(FONT_DIR, 'logo_white.png')
+    logo_bottom = 30
+    if os.path.exists(logo_path):
+        logo = Image.open(logo_path).convert("RGBA")
+        logo_h = 80
+        logo_w = int(logo_h * logo.width / logo.height)
+        logo = logo.resize((logo_w, logo_h), Image.LANCZOS)
+        img.paste(logo, ((W - logo_w) // 2, 20), logo)
+        logo_bottom = 20 + logo_h
+        draw = ImageDraw.Draw(img)
+    else:
+        f_brand = F('BB', 44)
+        brand_text = "MATCHDAY MENTORS"
+        bw = draw.textlength(brand_text, font=f_brand)
+        draw.text(((W-bw)//2+2, 42), brand_text, font=f_brand, fill=(0, 0, 0))
+        draw.text(((W-bw)//2, 40), brand_text, font=f_brand, fill=WHITE)
+        logo_bottom = 100
+    # Separator
+    sep_y = logo_bottom + 10
+    draw.rectangle([(W-400)//2, sep_y, (W+400)//2, sep_y+2], fill=GOLD_DIM)
+    # Title auto-fit
+    title_start_y = sep_y + 30
+    available_h = H - title_start_y - 200
+    title_size = 88
+    while title_size > 28:
+        f_title = F('BB', title_size)
+        lines = _wrap_text_custom(title, f_title, draw, W - 120)
+        if len(lines) * (title_size + 14) <= available_h:
+            break
+        title_size -= 4
+    f_title = F('BB', title_size)
+    lines = _wrap_text_custom(title, f_title, draw, W - 120)
+    line_h = title_size + 14
+    total_title_h = len(lines) * line_h
+    title_y = title_start_y + (available_h - total_title_h) // 2
+    for line in lines:
+        tw = draw.textlength(line, font=f_title)
+        draw.text(((W-tw)//2+3, title_y+3), line, font=f_title, fill=(0, 0, 0))
+        draw.text(((W-tw)//2, title_y), line, font=f_title, fill=WHITE)
+        title_y += line_h
+    # Subtitle
+    if subtitle:
+        f_sub = F('OB', 34)
+        sw = draw.textlength(subtitle, font=f_sub)
+        draw.text(((W-sw)//2, title_y+20), subtitle, font=f_sub, fill=GREY)
+    # Handle
+    f_handle = F('OB', 28)
+    handle = "@MatchdayMentors"
+    hw = draw.textlength(handle, font=f_handle)
+    draw.text(((W-hw)//2, H-55), handle, font=f_handle, fill=ACCENT_GREEN)
+    return img
+
+
+def generate_custom_story(title, subtitle=""):
+    """Generate a 1080x1920 branded MM story card for custom/promo content."""
+    W, H = 1080, 1920
+    img = Image.new("RGB", (W, H))
+    draw = ImageDraw.Draw(img)
+    # Dark gradient background
+    for y in range(H):
+        t = y / H
+        r = int(BG_TOP[0]*(1-t) + BG_BOT[0]*t)
+        gv = int(BG_TOP[1]*(1-t) + BG_BOT[1]*t)
+        b = int(BG_TOP[2]*(1-t) + BG_BOT[2]*t)
+        draw.line([(0, y), (W, y)], fill=(r, gv, b))
+    # Vignette
+    vig = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    vd = ImageDraw.Draw(vig)
+    for i in range(100):
+        alpha = int(160 * (i/100)**2)
+        vd.rectangle([i, i, W-i, H-i], outline=(0, 0, 0, alpha), width=1)
+    img = Image.alpha_composite(img.convert("RGBA"), vig).convert("RGB")
+    draw = ImageDraw.Draw(img)
+    # Green accent bars
+    draw.rectangle([0, 0, W, 10], fill=ACCENT_GREEN)
+    draw.rectangle([0, H-10, W, H], fill=ACCENT_GREEN)
+    # Logo
+    logo_path = os.path.join(FONT_DIR, 'logo_white.png')
+    logo_bottom = 50
+    if os.path.exists(logo_path):
+        logo = Image.open(logo_path).convert("RGBA")
+        logo_h = 110
+        logo_w = int(logo_h * logo.width / logo.height)
+        logo = logo.resize((logo_w, logo_h), Image.LANCZOS)
+        img.paste(logo, ((W - logo_w) // 2, 40), logo)
+        logo_bottom = 40 + logo_h
+        draw = ImageDraw.Draw(img)
+    else:
+        f_brand = F('BB', 52)
+        brand_text = "MATCHDAY MENTORS"
+        bw = draw.textlength(brand_text, font=f_brand)
+        draw.text(((W-bw)//2+2, 122), brand_text, font=f_brand, fill=(0, 0, 0))
+        draw.text(((W-bw)//2, 120), brand_text, font=f_brand, fill=WHITE)
+        logo_bottom = 190
+    # Separator
+    sep_y = logo_bottom + 20
+    draw.rectangle([(W-500)//2, sep_y, (W+500)//2, sep_y+2], fill=GOLD_DIM)
+    # Title auto-fit
+    title_start_y = sep_y + 50
+    available_h = H - title_start_y - 350
+    title_size = 100
+    while title_size > 32:
+        f_title = F('BB', title_size)
+        lines = _wrap_text_custom(title, f_title, draw, W - 120)
+        if len(lines) * (title_size + 18) <= available_h:
+            break
+        title_size -= 4
+    f_title = F('BB', title_size)
+    lines = _wrap_text_custom(title, f_title, draw, W - 120)
+    line_h = title_size + 18
+    total_title_h = len(lines) * line_h
+    title_y = title_start_y + (available_h - total_title_h) // 2
+    for line in lines:
+        tw = draw.textlength(line, font=f_title)
+        draw.text(((W-tw)//2+3, title_y+3), line, font=f_title, fill=(0, 0, 0))
+        draw.text(((W-tw)//2, title_y), line, font=f_title, fill=WHITE)
+        title_y += line_h
+    # Subtitle
+    if subtitle:
+        f_sub = F('OB', 40)
+        sub_lines = _wrap_text_custom(subtitle, f_sub, draw, W - 140)
+        sub_y = title_y + 30
+        for sl in sub_lines:
+            sw = draw.textlength(sl, font=f_sub)
+            draw.text(((W-sw)//2, sub_y), sl, font=f_sub, fill=GREY)
+            sub_y += 54
+    # Handle
+    f_handle = F('OB', 34)
+    handle = "@MatchdayMentors"
+    hw = draw.textlength(handle, font=f_handle)
+    draw.text(((W-hw)//2, H-80), handle, font=f_handle, fill=ACCENT_GREEN)
+    return img
+
+
 if __name__ == '__main__':
     test3 = [
         {"bet_type": "4-Fold", "odds": 2.70, "stake": "5%", "legs": 4},
