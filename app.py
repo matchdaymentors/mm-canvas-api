@@ -5,7 +5,7 @@ import json
 import os
 import requests
 import traceback
-from canvas_generator import generate_images, generate_story_images
+from canvas_generator import generate_images, generate_story_images, generate_custom_card, generate_custom_story
 
 app = Flask(__name__)
 
@@ -95,6 +95,38 @@ def generate():
     except Exception as e:
         error_msg = traceback.format_exc()
         print(f"ERROR: {error_msg}")
+        return jsonify({'error': str(e), 'traceback': error_msg}), 500
+
+
+
+@app.route('/generate/custom', methods=['POST'])
+def generate_custom():
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        title = data.get('title', '').strip()
+        subtitle = data.get('subtitle', '').strip()
+        fmt = data.get('format', 'both').lower()
+
+        if not title:
+            return jsonify({'error': 'title is required'}), 400
+
+        print(f"Generating custom card: title={title!r}, subtitle={subtitle!r}, format={fmt}")
+        result_payload = {'success': True}
+
+        if fmt in ('post', 'both'):
+            img = generate_custom_card(title, subtitle)
+            url = upload_to_cloudinary(img)
+            result_payload['image_urls'] = [url]
+
+        if fmt in ('story', 'both'):
+            story_img = generate_custom_story(title, subtitle)
+            story_url = upload_to_cloudinary(story_img)
+            result_payload['story_urls'] = [story_url]
+
+        return jsonify(result_payload)
+    except Exception as e:
+        error_msg = traceback.format_exc()
+        print(f"ERROR in /generate/custom: {error_msg}")
         return jsonify({'error': str(e), 'traceback': error_msg}), 500
 
 
