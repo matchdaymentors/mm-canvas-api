@@ -911,29 +911,26 @@ def generate_match_card(home_team, away_team, home_score, away_score,
                         title="MATCH RESULT", subtitle="", label="PREMIER LEAGUE"):
     """Generate a 1080x1080 match result card with team logos and score."""
     W, H = 1080, 1080
-    MC_RED  = (200, 16, 16)
-    MC_DARK = (8, 8, 18)
-    MC_DARK2 = (20, 20, 38)
 
     img = Image.new("RGB", (W, H))
     draw = ImageDraw.Draw(img)
     for y in range(H):
         t = y / H
-        r = int(MC_DARK[0] * (1 - t) + MC_DARK2[0] * t)
-        g = int(MC_DARK[1] * (1 - t) + MC_DARK2[1] * t)
-        b = int(MC_DARK[2] * (1 - t) + MC_DARK2[2] * t)
+        r = int(BG_TOP[0] * (1 - t) + BG_BOT[0] * t)
+        g = int(BG_TOP[1] * (1 - t) + BG_BOT[1] * t)
+        b = int(BG_TOP[2] * (1 - t) + BG_BOT[2] * t)
         draw.line([(0, y), (W, y)], fill=(r, g, b))
 
-    draw.rectangle([0, 0, W, 10], fill=MC_RED)
-    draw.rectangle([0, H - 10, W, H], fill=MC_RED)
+    draw.rectangle([0, 0, W, 10], fill=ACCENT_GREEN)
+    draw.rectangle([0, H - 10, W, H], fill=ACCENT_GREEN)
 
     f_label = F('OB', 26)
     lbl = label.upper()
     lw = int(draw.textlength(lbl, font=f_label))
-    draw.text(((W - lw) // 2, 22), lbl, font=f_label, fill=(160, 160, 185))
+    draw.text(((W - lw) // 2, 22), lbl, font=f_label, fill=GREY)
     dy = 36
     for dx in [(W - lw) // 2 - 22, (W + lw) // 2 + 10]:
-        draw.ellipse([dx, dy - 5, dx + 12, dy + 5], fill=MC_RED)
+        draw.ellipse([dx, dy - 5, dx + 12, dy + 5], fill=ACCENT_GREEN)
 
     LOGO_SIZE = (200, 200)
     home_logo_img = _fetch_logo(home_logo_url, LOGO_SIZE) if home_logo_url else None
@@ -959,17 +956,17 @@ def generate_match_card(home_team, away_team, home_score, away_score,
     total_w = hs_w + gap + dsh_w + gap + as_w
     sx = (W - total_w) // 2
     score_y = 195
-    h_col = MC_RED if int(home_score) > int(away_score) else WHITE
-    a_col = MC_RED if int(away_score) > int(home_score) else WHITE
+    h_col = GOLD if int(home_score) > int(away_score) else WHITE
+    a_col = GOLD if int(away_score) > int(home_score) else WHITE
     draw.text((sx, score_y), hs, font=f_score, fill=h_col)
-    draw.text((sx + hs_w + gap, score_y + 42), dash, font=f_dash, fill=(90, 90, 110))
+    draw.text((sx + hs_w + gap, score_y + 42), dash, font=f_dash, fill=GOLD_DIM)
     draw.text((sx + hs_w + gap + dsh_w + gap, score_y), as_, font=f_score, fill=a_col)
 
     div_y = 595
-    draw.rectangle([80, div_y, W - 80, div_y + 4], fill=MC_RED)
+    draw.rectangle([80, div_y, W - 80, div_y + 4], fill=GOLD_DIM)
 
     available_w = W - 140
-    t_size = 66
+    t_size = 80
     while t_size > 28:
         f_t = F('BB', t_size)
         t_lines = _wrap_text_custom(title, f_t, draw, available_w)
@@ -1005,29 +1002,26 @@ def generate_match_story(home_team, away_team, home_score, away_score,
                          title="MATCH RESULT", subtitle="", label="PREMIER LEAGUE"):
     """Generate a 1080x1920 match result story card with team logos and score."""
     W, H = 1080, 1920
-    MC_RED   = (200, 16, 16)
-    MC_DARK  = (8, 8, 18)
-    MC_DARK2 = (20, 20, 38)
 
     img = Image.new("RGB", (W, H))
     draw = ImageDraw.Draw(img)
     for y in range(H):
         t = y / H
-        r = int(MC_DARK[0] * (1 - t) + MC_DARK2[0] * t)
-        g = int(MC_DARK[1] * (1 - t) + MC_DARK2[1] * t)
-        b = int(MC_DARK[2] * (1 - t) + MC_DARK2[2] * t)
+        r = int(BG_TOP[0] * (1 - t) + BG_BOT[0] * t)
+        g = int(BG_TOP[1] * (1 - t) + BG_BOT[1] * t)
+        b = int(BG_TOP[2] * (1 - t) + BG_BOT[2] * t)
         draw.line([(0, y), (W, y)], fill=(r, g, b))
 
-    draw.rectangle([0, 0, W, 12], fill=MC_RED)
-    draw.rectangle([0, H - 12, W, H], fill=MC_RED)
+    draw.rectangle([0, 0, W, 12], fill=ACCENT_GREEN)
+    draw.rectangle([0, H - 12, W, H], fill=ACCENT_GREEN)
 
     f_label = F('OB', 32)
     lbl = label.upper()
     lw = int(draw.textlength(lbl, font=f_label))
-    draw.text(((W - lw) // 2, 30), lbl, font=f_label, fill=(160, 160, 185))
+    draw.text(((W - lw) // 2, 30), lbl, font=f_label, fill=GREY)
     dy = 48
     for dx in [(W - lw) // 2 - 28, (W + lw) // 2 + 14]:
-        draw.ellipse([dx, dy - 6, dx + 14, dy + 6], fill=MC_RED)
+        draw.ellipse([dx, dy - 6, dx + 14, dy + 6], fill=ACCENT_GREEN)
 
     LOGO_SIZE = (260, 260)
     home_logo_img = _fetch_logo(home_logo_url, LOGO_SIZE) if home_logo_url else None
@@ -1053,14 +1047,14 @@ def generate_match_story(home_team, away_team, home_score, away_score,
     total_w = hs_w + gap + dsh_w + gap + as_w
     sx = (W - total_w) // 2
     score_y = 290
-    h_col = MC_RED if int(home_score) > int(away_score) else WHITE
-    a_col = MC_RED if int(away_score) > int(home_score) else WHITE
+    h_col = GOLD if int(home_score) > int(away_score) else WHITE
+    a_col = GOLD if int(away_score) > int(home_score) else WHITE
     draw.text((sx, score_y), hs, font=f_score, fill=h_col)
-    draw.text((sx + hs_w + gap, score_y + 56), dash, font=f_dash, fill=(90, 90, 110))
+    draw.text((sx + hs_w + gap, score_y + 56), dash, font=f_dash, fill=GOLD_DIM)
     draw.text((sx + hs_w + gap + dsh_w + gap, score_y), as_, font=f_score, fill=a_col)
 
     div_y = 870
-    draw.rectangle([80, div_y, W - 80, div_y + 5], fill=MC_RED)
+    draw.rectangle([80, div_y, W - 80, div_y + 5], fill=GOLD_DIM)
 
     available_w = W - 140
     t_size = 88
