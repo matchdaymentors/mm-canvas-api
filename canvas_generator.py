@@ -1,5 +1,6 @@
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
-import math, os
+import math, os, requests
+from io import BytesIO
 
 # ── Palette ──────────────────────────────────────────────────────────────────
 BG_TOP        = (10, 34, 18)
@@ -861,6 +862,235 @@ def generate_custom_story(title, subtitle=""):
     handle = "@MatchdayMentors"
     hw = draw.textlength(handle, font=f_handle)
     draw.text(((W-hw)//2, H-80), handle, font=f_handle, fill=ACCENT_GREEN)
+    return img
+
+
+# ── Match result card ──────────────────────────────────────────────────────
+
+def _fetch_logo(url, size):
+    """Download a logo from a URL, return RGBA PIL image or None."""
+    try:
+        resp = requests.get(url, timeout=8, headers={'User-Agent': 'Mozilla/5.0'})
+        if resp.status_code == 200:
+            logo = Image.open(BytesIO(resp.content)).convert("RGBA")
+            logo = logo.resize(size, Image.LANCZOS)
+            return logo
+    except Exception:
+        pass
+    return None
+
+
+def _paste_team_block(img, draw, cx, cy, logo, team_name, circle_r, font_size=36):
+    """Draw a circular logo + team name centred at (cx, cy)."""
+    circ_size = circle_r * 2
+    circle_bg = Image.new("RGBA", (circ_size + 8, circ_size + 8), (0, 0, 0, 0))
+    cd = ImageDraw.Draw(circle_bg)
+    cd.ellipse([2, 2, circ_size + 5, circ_size + 5], fill=(255, 255, 255, 245))
+    img.paste(circle_bg, (cx - circle_r - 4, cy - circle_r - 4), circle_bg)
+    if logo:
+        max_logo = int(circle_r * 1.55)
+        lw, lh = logo.size
+        scale = min(max_logo / lw, max_logo / lh)
+        ns = (int(lw * scale), int(lh * scale))
+        logo_s = logo.resize(ns, Image.LANCZOS)
+        img.paste(logo_s, (cx - ns[0] // 2, cy - ns[1] // 2), logo_s)
+    draw = ImageDraw.Draw(img)
+    f_name = F('BB', font_size)
+    words = team_name.upper().split()
+    lines = [' '.join(words)] if len(words) <= 2 else [' '.join(words[:2]), ' '.join(words[2:])]
+    ny = cy + circle_r + 18
+    for ln in lines:
+        lw_px = draw.textlength(ln, font=f_name)
+        draw.text((cx - int(lw_px) // 2, ny), ln, font=f_name, fill=(255, 255, 255))
+        ny += font_size + 8
+    return draw
+
+
+def generate_match_card(home_team, away_team, home_score, away_score,
+                        home_logo_url="", away_logo_url="",
+                        title="MATCH RESULT", subtitle="", label="PREMIER LEAGUE"):
+    """Generate a 1080x1080 match result card with team logos and score."""
+    W, H = 1080, 1080
+    MC_RED  = (200, 16, 16)
+    MC_DARK = (8, 8, 18)
+    MC_DARK2 = (20, 20, 38)
+
+    img = Image.new("RGB", (W, H))
+    draw = ImageDraw.Draw(img)
+    for y in range(H):
+        t = y / H
+        r = int(MC_DARK[0] * (1 - t) + MC_DARK2[0] * t)
+        g = int(MC_DARK[1] * (1 - t) + MC_DARK2[1] * t)
+        b = int(MC_DARK[2] * (1 - t) + MC_DARK2[2] * t)
+        draw.line([(0, y), (W, y)], fill=(r, g, b))
+
+    draw.rectangle([0, 0, W, 10], fill=MC_RED)
+    draw.rectangle([0, H - 10, W, H], fill=MC_RED)
+
+    f_label = F('OB', 26)
+    lbl = label.upper()
+    lw = int(draw.textlength(lbl, font=f_label))
+    draw.text(((W - lw) // 2, 22), lbl, font=f_label, fill=(160, 160, 185))
+    dy = 36
+    for dx in [(W - lw) // 2 - 22, (W + lw) // 2 + 10]:
+        draw.ellipse([dx, dy - 5, dx + 12, dy + 5], fill=MC_RED)
+
+    LOGO_SIZE = (200, 200)
+    home_logo_img = _fetch_logo(home_logo_url, LOGO_SIZE) if home_logo_url else None
+    away_logo_img = _fetch_logo(away_logo_url, LOGO_SIZE) if away_logo_url else None
+
+    img = img.convert("RGBA")
+    CIRCLE_R = 120
+    LOGO_CY = 340
+    draw = _paste_team_block(img, draw, 210, LOGO_CY, home_logo_img, home_team, CIRCLE_R, 36)
+    draw = _paste_team_block(img, draw, W - 210, LOGO_CY, away_logo_img, away_team, CIRCLE_R, 36)
+    img = img.convert("RGB")
+    draw = ImageDraw.Draw(img)
+
+    f_score = F('BB', 180)
+    f_dash  = F('BB', 100)
+    hs = str(home_score)
+    as_ = str(away_score)
+    dash = "-"
+    hs_w  = int(draw.textlength(hs,   font=f_score))
+    as_w  = int(draw.textlength(as_,  font=f_score))
+    dsh_w = int(draw.textlength(dash, font=f_dash))
+    gap   = 20
+    total_w = hs_w + gap + dsh_w + gap + as_w
+    sx = (W - total_w) // 2
+    score_y = 195
+    h_col = MC_RED if int(home_score) > int(away_score) else WHITE
+    a_col = MC_RED if int(away_score) > int(home_score) else WHITE
+    draw.text((sx, score_y), hs, font=f_score, fill=h_col)
+    draw.text((sx + hs_w + gap, score_y + 42), dash, font=f_dash, fill=(90, 90, 110))
+    draw.text((sx + hs_w + gap + dsh_w + gap, score_y), as_, font=f_score, fill=a_col)
+
+    div_y = 595
+    draw.rectangle([80, div_y, W - 80, div_y + 4], fill=MC_RED)
+
+    available_w = W - 140
+    t_size = 66
+    while t_size > 28:
+        f_t = F('BB', t_size)
+        t_lines = _wrap_text_custom(title, f_t, draw, available_w)
+        if len(t_lines) <= 3:
+            break
+        t_size -= 4
+    f_t = F('BB', t_size)
+    t_lines = _wrap_text_custom(title, f_t, draw, available_w)
+    ty = div_y + 26
+    for ln in t_lines:
+        lw_px = draw.textlength(ln, font=f_t)
+        draw.text(((W - int(lw_px)) // 2, ty), ln, font=f_t, fill=WHITE)
+        ty += t_size + 12
+
+    if subtitle:
+        f_sub = F('OB', 30)
+        sub_lines = _wrap_text_custom(subtitle, f_sub, draw, W - 160)
+        ty += 6
+        for ln in sub_lines:
+            lw_px = draw.textlength(ln, font=f_sub)
+            draw.text(((W - int(lw_px)) // 2, ty), ln, font=f_sub, fill=(160, 160, 185))
+            ty += 44
+
+    f_h = F('OB', 28)
+    handle = "@MatchdayMentors"
+    hw = draw.textlength(handle, font=f_h)
+    draw.text(((W - int(hw)) // 2, H - 54), handle, font=f_h, fill=(160, 160, 185))
+    return img
+
+
+def generate_match_story(home_team, away_team, home_score, away_score,
+                         home_logo_url="", away_logo_url="",
+                         title="MATCH RESULT", subtitle="", label="PREMIER LEAGUE"):
+    """Generate a 1080x1920 match result story card with team logos and score."""
+    W, H = 1080, 1920
+    MC_RED   = (200, 16, 16)
+    MC_DARK  = (8, 8, 18)
+    MC_DARK2 = (20, 20, 38)
+
+    img = Image.new("RGB", (W, H))
+    draw = ImageDraw.Draw(img)
+    for y in range(H):
+        t = y / H
+        r = int(MC_DARK[0] * (1 - t) + MC_DARK2[0] * t)
+        g = int(MC_DARK[1] * (1 - t) + MC_DARK2[1] * t)
+        b = int(MC_DARK[2] * (1 - t) + MC_DARK2[2] * t)
+        draw.line([(0, y), (W, y)], fill=(r, g, b))
+
+    draw.rectangle([0, 0, W, 12], fill=MC_RED)
+    draw.rectangle([0, H - 12, W, H], fill=MC_RED)
+
+    f_label = F('OB', 32)
+    lbl = label.upper()
+    lw = int(draw.textlength(lbl, font=f_label))
+    draw.text(((W - lw) // 2, 30), lbl, font=f_label, fill=(160, 160, 185))
+    dy = 48
+    for dx in [(W - lw) // 2 - 28, (W + lw) // 2 + 14]:
+        draw.ellipse([dx, dy - 6, dx + 14, dy + 6], fill=MC_RED)
+
+    LOGO_SIZE = (260, 260)
+    home_logo_img = _fetch_logo(home_logo_url, LOGO_SIZE) if home_logo_url else None
+    away_logo_img = _fetch_logo(away_logo_url, LOGO_SIZE) if away_logo_url else None
+
+    img = img.convert("RGBA")
+    CIRCLE_R = 155
+    LOGO_CY = 530
+    draw = _paste_team_block(img, draw, 210, LOGO_CY, home_logo_img, home_team, CIRCLE_R, 42)
+    draw = _paste_team_block(img, draw, W - 210, LOGO_CY, away_logo_img, away_team, CIRCLE_R, 42)
+    img = img.convert("RGB")
+    draw = ImageDraw.Draw(img)
+
+    f_score = F('BB', 240)
+    f_dash  = F('BB', 130)
+    hs = str(home_score)
+    as_ = str(away_score)
+    dash = "-"
+    hs_w  = int(draw.textlength(hs,   font=f_score))
+    as_w  = int(draw.textlength(as_,  font=f_score))
+    dsh_w = int(draw.textlength(dash, font=f_dash))
+    gap   = 24
+    total_w = hs_w + gap + dsh_w + gap + as_w
+    sx = (W - total_w) // 2
+    score_y = 290
+    h_col = MC_RED if int(home_score) > int(away_score) else WHITE
+    a_col = MC_RED if int(away_score) > int(home_score) else WHITE
+    draw.text((sx, score_y), hs, font=f_score, fill=h_col)
+    draw.text((sx + hs_w + gap, score_y + 56), dash, font=f_dash, fill=(90, 90, 110))
+    draw.text((sx + hs_w + gap + dsh_w + gap, score_y), as_, font=f_score, fill=a_col)
+
+    div_y = 870
+    draw.rectangle([80, div_y, W - 80, div_y + 5], fill=MC_RED)
+
+    available_w = W - 140
+    t_size = 88
+    while t_size > 32:
+        f_t = F('BB', t_size)
+        t_lines = _wrap_text_custom(title, f_t, draw, available_w)
+        if len(t_lines) <= 4:
+            break
+        t_size -= 4
+    f_t = F('BB', t_size)
+    t_lines = _wrap_text_custom(title, f_t, draw, available_w)
+    ty = div_y + 36
+    for ln in t_lines:
+        lw_px = draw.textlength(ln, font=f_t)
+        draw.text(((W - int(lw_px)) // 2, ty), ln, font=f_t, fill=WHITE)
+        ty += t_size + 16
+
+    if subtitle:
+        f_sub = F('OB', 38)
+        sub_lines = _wrap_text_custom(subtitle, f_sub, draw, W - 160)
+        ty += 10
+        for ln in sub_lines:
+            lw_px = draw.textlength(ln, font=f_sub)
+            draw.text(((W - int(lw_px)) // 2, ty), ln, font=f_sub, fill=(160, 160, 185))
+            ty += 56
+
+    f_h = F('OB', 36)
+    handle = "@MatchdayMentors"
+    hw = draw.textlength(handle, font=f_h)
+    draw.text(((W - int(hw)) // 2, H - 72), handle, font=f_h, fill=(160, 160, 185))
     return img
 
 

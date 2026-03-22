@@ -5,7 +5,7 @@ import json
 import os
 import requests
 import traceback
-from canvas_generator import generate_images, generate_story_images, generate_custom_card, generate_custom_story
+from canvas_generator import generate_images, generate_story_images, generate_custom_card, generate_custom_story, generate_match_card, generate_match_story
 
 app = Flask(__name__)
 
@@ -127,6 +127,46 @@ def generate_custom():
     except Exception as e:
         error_msg = traceback.format_exc()
         print(f"ERROR in /generate/custom: {error_msg}")
+        return jsonify({'error': str(e), 'traceback': error_msg}), 500
+
+
+@app.route('/generate/matchcard', methods=['POST'])
+def generate_matchcard():
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        home_team      = data.get('home_team', '').strip()
+        away_team      = data.get('away_team', '').strip()
+        home_score     = data.get('home_score', 0)
+        away_score     = data.get('away_score', 0)
+        home_logo_url  = data.get('home_logo_url', '').strip()
+        away_logo_url  = data.get('away_logo_url', '').strip()
+        title          = data.get('title', 'MATCH RESULT').strip()
+        subtitle       = data.get('subtitle', '').strip()
+        label          = data.get('label', 'PREMIER LEAGUE').strip()
+        fmt            = data.get('format', 'both').lower()
+
+        if not home_team or not away_team:
+            return jsonify({'error': 'home_team and away_team are required'}), 400
+
+        print(f"Generating match card: {home_team} {home_score}-{away_score} {away_team}, format={fmt}")
+        result_payload = {'success': True}
+
+        if fmt in ('post', 'both'):
+            img = generate_match_card(home_team, away_team, home_score, away_score,
+                                      home_logo_url, away_logo_url, title, subtitle, label)
+            url = upload_to_cloudinary(img)
+            result_payload['image_urls'] = [url]
+
+        if fmt in ('story', 'both'):
+            story_img = generate_match_story(home_team, away_team, home_score, away_score,
+                                             home_logo_url, away_logo_url, title, subtitle, label)
+            story_url = upload_to_cloudinary(story_img)
+            result_payload['story_urls'] = [story_url]
+
+        return jsonify(result_payload)
+    except Exception as e:
+        error_msg = traceback.format_exc()
+        print(f"ERROR in /generate/matchcard: {error_msg}")
         return jsonify({'error': str(e), 'traceback': error_msg}), 500
 
 
