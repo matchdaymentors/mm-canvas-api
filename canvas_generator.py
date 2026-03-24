@@ -1147,7 +1147,8 @@ def generate_daily_results(picks, date_str=""):
     HEADLINE_H = 72     # "TODAY'S RESULTS"
     DATE_H     = 46     # date line (or small gap if absent)
     SUMBAR_H   = 100
-    FOOTER_H   = 118    # gold line + 2 text lines + bottom bar
+    PATREON_H  = 128    # full Patreon bar (logo + 3 lines)
+    FOOTER_H   = PATREON_H + 20   # patreon bar + gold separators + bottom bar
     PAD_TOP    = 14     # extra breathing room below header
     PAD_BOT    = 14     # gap between last row and summary bar
 
@@ -1178,9 +1179,17 @@ def generate_daily_results(picks, date_str=""):
 
     header_px = (TOPBAR_H + LOGO_H + SEP_H + HEADLINE_H +
                  (DATE_H if date_str else 14) + PAD_TOP)
-    H = header_px + sections_px + PAD_BOT + SUMBAR_H + FOOTER_H
+    content_h = header_px + sections_px + PAD_BOT + SUMBAR_H + FOOTER_H
     # Clamp: min 1080 (square-ish), max 1920
-    H = max(1080, min(1920, H))
+    H = max(1080, min(1920, content_h))
+
+    # ── Distribute any extra space as padding between / around sections ───────
+    extra       = H - content_h          # ≥ 0 after clamping
+    n_gaps      = len(sections) + 1      # gaps: before first, between, after last
+    extra_gap   = extra // n_gaps if n_gaps > 0 else 0
+    # add extra_gap to PAD_TOP (applied once at draw time) and SEC_GAP
+    PAD_TOP  += extra_gap
+    SEC_GAP  += extra_gap
 
     # ── Background ────────────────────────────────────────────────────────────
     bg  = make_pitch_bg(W, H)
@@ -1273,6 +1282,14 @@ def generate_daily_results(picks, date_str=""):
             ]:
                 team_logo = _fetch_logo_crisp(logo_url, LS) if logo_url else None
                 if team_logo:
+                    # Subtle dark shadow disc — gives white/light logos contrast
+                    # without looking like a box (very soft, just 70% opacity)
+                    pad = 6
+                    shadow_size = LS + pad * 2
+                    shadow = Image.new("RGBA", (shadow_size, shadow_size), (0, 0, 0, 0))
+                    ImageDraw.Draw(shadow).ellipse(
+                        [0, 0, shadow_size-1, shadow_size-1], fill=(0, 0, 0, 80))
+                    img.paste(shadow, (lx - pad, logo_ly - pad), shadow)
                     img.paste(team_logo, (lx, logo_ly), team_logo)
                     draw = ImageDraw.Draw(img)
                 else:
@@ -1408,22 +1425,48 @@ def generate_daily_results(picks, date_str=""):
                sum_y + (SUM_H - (sbb2[3]-sbb2[1])) // 2),
               sum_text, font=f_sum, fill=GOLD)
 
-    # ── CTA footer ────────────────────────────────────────────────────────────
-    cta_y = sum_y + SUM_H + 12
-    draw.rectangle([0, cta_y, W, cta_y+2], fill=GOLD_DIM)
+    # ── Patreon footer bar (matches bet slip card design) ─────────────────────
+    pat_y = sum_y + SUM_H + 14
 
-    f_cta_big = F('BB', 28)
-    cta_big   = "JOIN 400+ MEMBERS ON PATREON"
-    cbb       = draw.textbbox((0, 0), cta_big, font=f_cta_big)
-    draw.text(((W - (cbb[2]-cbb[0])) // 2, cta_y + 16), cta_big, font=f_cta_big, fill=GOLD)
+    # Dark gradient background
+    for py in range(pat_y, H - 6):
+        t  = (py - pat_y) / max(H - 6 - pat_y, 1)
+        rc = int(6 + 4*t); gc = int(16 + 8*t); bc = int(10 + 4*t)
+        draw.line([(0, py), (W, py)], fill=(rc, gc, bc))
 
-    f_cta_sm = F('OR', 21)
-    cta_sm   = "patreon.com/Matchdaymentors  ·  Full analysis inside"
-    csm_bb   = draw.textbbox((0, 0), cta_sm, font=f_cta_sm)
-    draw.text(((W - (csm_bb[2]-csm_bb[0])) // 2, cta_y + 56), cta_sm, font=f_cta_sm, fill=GREY)
+    # Gold top separator
+    draw.rectangle([0, pat_y, W, pat_y + 3], fill=GOLD)
+
+    # Patreon logo (left side)
+    pat_logo_path = os.path.join(FONT_DIR, 'patreon_logo.png')
+    pat_logo_h    = 72
+    pat_pad       = 32
+    pat_mid_y     = pat_y + PATREON_H // 2
+    pat_logo_w    = pat_pad   # fallback width
+    if os.path.exists(pat_logo_path):
+        pl     = Image.open(pat_logo_path).convert("RGBA")
+        aspect = pl.width / pl.height
+        pat_logo_w = int(pat_logo_h * aspect)
+        pl     = pl.resize((pat_logo_w, pat_logo_h), Image.LANCZOS)
+        img.paste(pl, (pat_pad, pat_mid_y - pat_logo_h // 2), pl)
+        draw = ImageDraw.Draw(img)
+
+    # Vertical gold divider
+    div_x = pat_pad + pat_logo_w + 24
+    draw.rectangle([div_x, pat_y + 16, div_x + 2, H - 16], fill=GOLD_DIM)
+
+    # Text block — 3 lines matching bet slip card
+    tx    = div_x + 24
+    line1 = "Full Slips + Bankroll & Risk Mgmt + Masterclass"
+    line2 = "Join 500+ smart bettors on Patreon  ·  only £10/month"
+    line3 = "patreon.com/Matchdaymentors"
+
+    draw.text((tx, pat_mid_y - 44), line1, font=F('BB', 22), fill=WHITE)
+    draw.text((tx, pat_mid_y - 10), line2, font=F('OB', 19), fill=GOLD)
+    draw.text((tx, pat_mid_y + 22), line3, font=F('OR', 17), fill=GREY)
 
     # Gold bottom bar
-    draw.rectangle([0, H-10, W, H], fill=GOLD)
+    draw.rectangle([0, H - 8, W, H], fill=GOLD)
 
     return img
 
