@@ -1282,14 +1282,14 @@ def generate_daily_results(picks, date_str=""):
             ]:
                 team_logo = _fetch_logo_crisp(logo_url, LS) if logo_url else None
                 if team_logo:
-                    # Subtle dark shadow disc — gives white/light logos contrast
-                    # without looking like a box (very soft, just 70% opacity)
-                    pad = 6
-                    shadow_size = LS + pad * 2
-                    shadow = Image.new("RGBA", (shadow_size, shadow_size), (0, 0, 0, 0))
-                    ImageDraw.Draw(shadow).ellipse(
-                        [0, 0, shadow_size-1, shadow_size-1], fill=(0, 0, 0, 80))
-                    img.paste(shadow, (lx - pad, logo_ly - pad), shadow)
+                    # Subtle white soft glow — makes dark/black crests visible
+                    # on the dark background without looking like a box
+                    pad = 7
+                    glow_size = LS + pad * 2
+                    glow = Image.new("RGBA", (glow_size, glow_size), (0, 0, 0, 0))
+                    ImageDraw.Draw(glow).ellipse(
+                        [0, 0, glow_size-1, glow_size-1], fill=(255, 255, 255, 55))
+                    img.paste(glow, (lx - pad, logo_ly - pad), glow)
                     img.paste(team_logo, (lx, logo_ly), team_logo)
                     draw = ImageDraw.Draw(img)
                 else:
@@ -1442,7 +1442,11 @@ def generate_daily_results(picks, date_str=""):
     pat_logo_h    = 72
     pat_pad       = 32
     pat_mid_y     = pat_y + PATREON_H // 2
-    pat_logo_w    = pat_pad   # fallback width
+
+    line1 = "Full Slips + Bankroll & Risk Mgmt + Masterclass"
+    line2 = "Join 500+ smart bettors on Patreon  ·  only £10/month"
+    line3 = "patreon.com/Matchdaymentors"
+
     if os.path.exists(pat_logo_path):
         pl     = Image.open(pat_logo_path).convert("RGBA")
         aspect = pl.width / pl.height
@@ -1450,20 +1454,24 @@ def generate_daily_results(picks, date_str=""):
         pl     = pl.resize((pat_logo_w, pat_logo_h), Image.LANCZOS)
         img.paste(pl, (pat_pad, pat_mid_y - pat_logo_h // 2), pl)
         draw = ImageDraw.Draw(img)
-
-    # Vertical gold divider
-    div_x = pat_pad + pat_logo_w + 24
-    draw.rectangle([div_x, pat_y + 16, div_x + 2, H - 16], fill=GOLD_DIM)
-
-    # Text block — 3 lines matching bet slip card
-    tx    = div_x + 24
-    line1 = "Full Slips + Bankroll & Risk Mgmt + Masterclass"
-    line2 = "Join 500+ smart bettors on Patreon  ·  only £10/month"
-    line3 = "patreon.com/Matchdaymentors"
-
-    draw.text((tx, pat_mid_y - 44), line1, font=F('BB', 22), fill=WHITE)
-    draw.text((tx, pat_mid_y - 10), line2, font=F('OB', 19), fill=GOLD)
-    draw.text((tx, pat_mid_y + 22), line3, font=F('OR', 17), fill=GREY)
+        # Vertical gold divider
+        div_x = pat_pad + pat_logo_w + 24
+        draw.rectangle([div_x, pat_y + 16, div_x + 2, H - 16], fill=GOLD_DIM)
+        tx = div_x + 24
+        draw.text((tx, pat_mid_y - 44), line1, font=F('BB', 22), fill=WHITE)
+        draw.text((tx, pat_mid_y - 10), line2, font=F('OB', 19), fill=GOLD)
+        draw.text((tx, pat_mid_y + 22), line3, font=F('OR', 17), fill=GREY)
+    else:
+        # No logo file — centre all three lines horizontally
+        f1, f2, f3 = F('BB', 24), F('OB', 21), F('OR', 18)
+        for txt, font, col, dy in [
+            (line1, f1, WHITE, -46),
+            (line2, f2, GOLD,  -8),
+            (line3, f3, GREY,   30),
+        ]:
+            bb = draw.textbbox((0, 0), txt, font=font)
+            draw.text(((W - (bb[2]-bb[0])) // 2, pat_mid_y + dy),
+                      txt, font=font, fill=col)
 
     # Gold bottom bar
     draw.rectangle([0, H - 8, W, H], fill=GOLD)
