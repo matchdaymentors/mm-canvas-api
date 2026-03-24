@@ -5,7 +5,7 @@ import json
 import os
 import requests
 import traceback
-from canvas_generator import generate_images, generate_story_images, generate_custom_card, generate_custom_story, generate_match_card, generate_match_story
+from canvas_generator import generate_images, generate_story_images, generate_custom_card, generate_custom_story, generate_match_card, generate_match_story, generate_daily_results
 
 app = Flask(__name__)
 
@@ -167,6 +167,61 @@ def generate_matchcard():
     except Exception as e:
         error_msg = traceback.format_exc()
         print(f"ERROR in /generate/matchcard: {error_msg}")
+        return jsonify({'error': str(e), 'traceback': error_msg}), 500
+
+
+@app.route('/generate/daily-results', methods=['POST'])
+def generate_daily_results_endpoint():
+    """
+    Generate a daily results infographic.
+
+    Required body:
+      picks  – list of pick objects:
+               { home_team, away_team, home_score, away_score,
+                 home_logo_url?, away_logo_url?,
+                 market, pick, odds, won }
+    Optional:
+      date   – display date string, e.g. "24 MAR 2026"
+      force  – if true, skip the ≥50% win-rate check (default false)
+    """
+    try:
+        data   = request.get_json(force=True, silent=True) or {}
+        picks  = data.get('picks', [])
+        date_str = data.get('date', '').strip()
+        force  = bool(data.get('force', False))
+
+        if not isinstance(picks, list) or not picks:
+            return jsonify({'error': 'picks array is required'}), 400
+
+        total  = len(picks)
+        won    = sum(1 for p in picks if p.get('won', False))
+        pct    = won / total if total else 0
+
+        if not force and pct < 0.5:
+            return jsonify({
+                'success': False,
+                'skipped': True,
+                'reason': f'Win rate {won}/{total} ({int(pct*100)}%) is below 50% threshold',
+                'won': won,
+                'total': total
+            }), 200
+
+        print(f"Generating daily results: {won}/{total} won, date={date_str!r}")
+
+        img = generate_daily_results(picks, date_str)
+        url = upload_to_cloudinary(img)
+
+        return jsonify({
+            'success': True,
+            'image_url': url,
+            'won': won,
+            'total': total,
+            'win_rate': round(pct * 100, 1)
+        })
+
+    except Exception as e:
+        error_msg = traceback.format_exc()
+        print(f"ERROR in /generate/daily-results: {error_msg}")
         return jsonify({'error': str(e), 'traceback': error_msg}), 500
 
 
