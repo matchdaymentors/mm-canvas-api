@@ -1,8 +1,8 @@
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+﻿from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageChops
 import math, os, requests, base64
 from io import BytesIO
 
-# ── Palette ──────────────────────────────────────────────────────────────────
+# в”Ђв”Ђ Palette в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 BG_TOP        = (10, 34, 18)
 BG_BOT        = (6,  20, 10)
 GOLD          = (212, 175, 55)
@@ -22,7 +22,7 @@ BLACK         = (0, 0, 0)
 
 FONT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ── Country flag data
+# в”Ђв”Ђ Country flag data
 FLAG_DATA = {
     "ENG": ((0,36,125),   (255,255,255), (207,20,43),  (255,255,255)),
     "GER": ((0,0,0),      (221,0,0),     (255,206,0),  (255,255,255)),
@@ -75,7 +75,7 @@ def F(name, size):
     try:    return ImageFont.truetype(os.path.join(FONT_DIR, m[name]), size)
     except: return ImageFont.load_default()
 
-# ── Pitch background ─────────────────────────────────────────────────────────
+# в”Ђв”Ђ Pitch background в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 def make_pitch_bg(W, H):
     bg = Image.new("RGB", (W, H), BG_TOP)
     d  = ImageDraw.Draw(bg)
@@ -141,7 +141,7 @@ def make_pitch_bg(W, H):
     bg = bg.filter(ImageFilter.GaussianBlur(radius=14))
     return bg
 
-# ── Betano logo (real PNG) ────────────────────────────────────────────────────
+# в”Ђв”Ђ Betano logo (real PNG) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 _betano_logo_cache = None
 
 def get_betano_logo():
@@ -169,7 +169,7 @@ def draw_betano_logo(img, x, y, w=130, h=38):
         paste_x = x + (w - target_w) // 2
         img.paste(resized, (paste_x, paste_y), resized)
 
-# ── Canvas generator ──────────────────────────────────────────────────────────
+# в”Ђв”Ђ Canvas generator в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 def generate_canvas(slips, image_index=0, total_images=1):
     W, H = 1080, 1080
 
@@ -190,7 +190,7 @@ def generate_canvas(slips, image_index=0, total_images=1):
     # Gold top bar
     draw.rectangle([0,0,W,8], fill=GOLD)
 
-    # ── LOGO centered ────────────────────────────────────────────────────────
+    # в”Ђв”Ђ LOGO centered в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     logo_path = os.path.join(FONT_DIR, 'logo_white.png')
     logo_bottom = 20
     if os.path.exists(logo_path):
@@ -207,26 +207,26 @@ def generate_canvas(slips, image_index=0, total_images=1):
     sep_y = logo_bottom + 6
     draw.rectangle([80, sep_y, W-80, sep_y+1], fill=GOLD_DIM)
 
-    # ── "TODAY'S CARD" — BIG headline ────────────────────────────────────────
+    # в”Ђв”Ђ "TODAY'S CARD" вЂ” BIG headline в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     header_y   = sep_y + 10
-    f_headline = F('BB', 52)          # much bigger — this IS the headline
+    f_headline = F('BB', 52)          # much bigger вЂ” this IS the headline
     n          = len(slips)
     hl_text    = "TODAY'S CARD"
     if total_images > 1:
-        hl_text = f"TODAY'S CARD  ·  PART {image_index+1}/{total_images}"
+        hl_text = f"TODAY'S CARD  В·  PART {image_index+1}/{total_images}"
 
     bb = draw.textbbox((0,0), hl_text, font=f_headline)
     tw = bb[2]-bb[0]
     draw.text(((W-tw)//2, header_y), hl_text, font=f_headline, fill=GOLD)
 
-    # Slip count — clear and readable
+    # Slip count вЂ” clear and readable
     f_slip_count = F('OB', 24)
-    sc_text = f"{n} SLIP{'S' if n>1 else ''}  ·  TODAY'S SELECTIONS"
+    sc_text = f"{n} SLIP{'S' if n>1 else ''}  В·  TODAY'S SELECTIONS"
     bb2 = draw.textbbox((0,0), sc_text, font=f_slip_count)
     tw2 = bb2[2]-bb2[0]
     draw.text(((W-tw2)//2, header_y+58), sc_text, font=f_slip_count, fill=GREY)
 
-    # ── CARDS ─────────────────────────────────────────────────────────────────
+    # в”Ђв”Ђ CARDS в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     PATREON_H  = 120
     patreon_y  = H - PATREON_H - 6
     TOP        = header_y + 96
@@ -272,7 +272,7 @@ def generate_canvas(slips, image_index=0, total_images=1):
 
         draw = ImageDraw.Draw(img)
 
-        # Card border — glowing green
+        # Card border вЂ” glowing green
         draw.rounded_rectangle([cx,cy,cx+cw,cy+ch], radius=18,
                                 outline=(20,90,42), width=5)
         draw.rounded_rectangle([cx+2,cy+2,cx+cw-2,cy+ch-2], radius=16,
@@ -282,18 +282,18 @@ def generate_canvas(slips, image_index=0, total_images=1):
         draw.rounded_rectangle([cx+4,cy+4,cx+cw-4,cy+10],
                                 radius=4, fill=GOLD)
 
-        # ── SLIP NUMBER (top-left, clear)
+        # в”Ђв”Ђ SLIP NUMBER (top-left, clear)
         f_slipnum = F('OB', 15)
         draw.text((cx+18, cy+18), f"SLIP {i+1}", font=f_slipnum, fill=GREY)
 
-        # ── BETANO LOGO (top-right) — real logo
+        # в”Ђв”Ђ BETANO LOGO (top-right) вЂ” real logo
         draw_betano_logo(img, cx+cw-148, cy+12, w=134, h=40)
         draw = ImageDraw.Draw(img)
 
-        # ── BET TYPE — big, white, very readable
+        # в”Ђв”Ђ BET TYPE вЂ” big, white, very readable
         f_btype = F('BB', max(22, int(34 * scale)))
         bt = str(slip.get('bet_type','COMBO')).upper()
-        if len(bt) > 20: bt = bt[:20]+'…'
+        if len(bt) > 20: bt = bt[:20]+'вЂ¦'
         bb3 = draw.textbbox((0,0), bt, font=f_btype)
         tw3 = bb3[2]-bb3[0]
         btype_y = cy + max(36, int(56 * scale))
@@ -302,7 +302,7 @@ def generate_canvas(slips, image_index=0, total_images=1):
                   fill=(0,0,0))
         draw.text((cx+(cw-tw3)//2, btype_y), bt, font=f_btype, fill=WHITE)
 
-        # ── TOTAL ODDS SECTION — hero element
+        # в”Ђв”Ђ TOTAL ODDS SECTION вЂ” hero element
         f_odds_lbl = F('OB', max(14, int(18 * scale)))
 
         odds_lbl_y = cy + max(60, int(98 * scale))
@@ -318,8 +318,8 @@ def generate_canvas(slips, image_index=0, total_images=1):
                                 radius=6, fill=(0,0,0,0))
         draw.text((lbl_x, odds_lbl_y), lbl, font=f_odds_lbl, fill=GREY)
 
-        # Odds value — gold, massive, glowing
-        odds_raw = str(slip.get('odds','—'))
+        # Odds value вЂ” gold, massive, glowing
+        odds_raw = str(slip.get('odds','вЂ”'))
         odds_y = odds_lbl_y + max(16, int(24 * scale))
         by = cy + ch - 40
         max_h_for_odds = max(20, by - odds_y - 6)
@@ -332,7 +332,7 @@ def generate_canvas(slips, image_index=0, total_images=1):
             odds_int_str = odds_raw
             odds_dec_str = ''
 
-        # ── Auto-fit: shrink font until odds fit (width AND height)
+        # в”Ђв”Ђ Auto-fit: shrink font until odds fit (width AND height)
         max_odds_width = cw - 36   # 18px margin each side
         odds_font_size = 80
         while odds_font_size > 22:
@@ -358,7 +358,7 @@ def generate_canvas(slips, image_index=0, total_images=1):
         int_w2  = int_bb2[2] - int_bb2[0]
         int_h2  = int_bb2[3] - int_bb2[1]
 
-        # Draw integer part — glow + shadow + main
+        # Draw integer part вЂ” glow + shadow + main
         for go in [(3,3,40),(2,2,70),(1,1,100)]:
             gimg = Image.new("RGBA",(W,H),(0,0,0,0))
             gd   = ImageDraw.Draw(gimg)
@@ -369,7 +369,7 @@ def generate_canvas(slips, image_index=0, total_images=1):
         draw.text((cx+20, odds_y+3), odds_int_str, font=f_int, fill=(0,0,0))
         draw.text((cx+18, odds_y),   odds_int_str, font=f_int, fill=GOLD)
 
-        # Draw decimal part — vertically aligned to bottom of integer
+        # Draw decimal part вЂ” vertically aligned to bottom of integer
         if odds_dec_str:
             dec_x = cx + 18 + int_w2 + 2
             # Align decimal baseline to integer baseline
@@ -386,7 +386,7 @@ def generate_canvas(slips, image_index=0, total_images=1):
             draw.text((dec_x+2, dec_y+2), odds_dec_str, font=f_dec, fill=(0,0,0))
             draw.text((dec_x,   dec_y),   odds_dec_str, font=f_dec, fill=GOLD)
 
-        # ── BOTTOM INFO ROW — clear, readable ────────────────────────────────
+        # в”Ђв”Ђ BOTTOM INFO ROW вЂ” clear, readable в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
         by = cy + ch - 40
 
         # Background strip for bottom info
@@ -408,7 +408,7 @@ def generate_canvas(slips, image_index=0, total_images=1):
         sw2 = sbb[2]-sbb[0]
         draw.text((cx+cw-sw2-18, by-2), stake_str, font=f_stake, fill=GOLD)
 
-    # ── PATREON BAR ────────────────────────────────────────────────────────────
+    # в”Ђв”Ђ PATREON BAR в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     # Dark background with subtle gradient
     for py in range(patreon_y, H-6):
         t = (py - patreon_y) / (H - 6 - patreon_y)
@@ -420,7 +420,7 @@ def generate_canvas(slips, image_index=0, total_images=1):
     # Gold top separator
     draw.rectangle([0, patreon_y, W, patreon_y+3], fill=GOLD)
 
-    # Patreon symbol logo — large and prominent
+    # Patreon symbol logo вЂ” large and prominent
     pat_logo_path = os.path.join(FONT_DIR, 'patreon_logo.png')
     pat_logo_h = 80
     pat_pad = 30
@@ -442,13 +442,13 @@ def generate_canvas(slips, image_index=0, total_images=1):
     tx = div_x + 22
     mid_y3 = patreon_y + PATREON_H//2
 
-    # Line 1 — big bold hook
-    draw.text((tx, mid_y3-34), "Full Slips + Bankroll & Risk Management + Masterclass — only £10/month",
+    # Line 1 вЂ” big bold hook
+    draw.text((tx, mid_y3-34), "Full Slips + Bankroll & Risk Management + Masterclass вЂ” only ВЈ10/month",
               font=F('BB', 24), fill=WHITE)
-    # Line 2 — social proof + link
+    # Line 2 вЂ” social proof + link
     draw.text((tx, mid_y3+2), "Join 500+ smart bettors on Patreon",
               font=F('OB', 18), fill=GOLD)
-    # Line 3 — URL
+    # Line 3 вЂ” URL
     draw.text((tx, mid_y3+26), "patreon.com/Matchdaymentors",
               font=F('OR', 16), fill=GREY)
 
@@ -463,7 +463,7 @@ def generate_images(slips_data):
     return [generate_canvas(slips_data, 0, 1)]
 
 
-# ── Story generator (1080×1920 — Instagram & Facebook Stories) ───────────────
+# в”Ђв”Ђ Story generator (1080Г—1920 вЂ” Instagram & Facebook Stories) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 def generate_story(slips, image_index=0, total_images=1):
     """Generate 1080x1920 story format for Instagram/Facebook Stories."""
     W, H = 1080, 1920
@@ -485,7 +485,7 @@ def generate_story(slips, image_index=0, total_images=1):
     # Gold top bar
     draw.rectangle([0, 0, W, 10], fill=GOLD)
 
-    # ── Logo ─────────────────────────────────────────────────────────────────
+    # в”Ђв”Ђ Logo в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     logo_path = os.path.join(FONT_DIR, 'logo_white.png')
     logo_bottom = 30
     if os.path.exists(logo_path):
@@ -502,22 +502,22 @@ def generate_story(slips, image_index=0, total_images=1):
     sep_y = logo_bottom + 12
     draw.rectangle([60, sep_y, W-60, sep_y+2], fill=GOLD_DIM)
 
-    # ── Headline ──────────────────────────────────────────────────────────────
+    # в”Ђв”Ђ Headline в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     header_y   = sep_y + 18
     f_headline = F('BB', 68)
     n          = len(slips)
     hl_text    = "TODAY'S CARD"
     if total_images > 1:
-        hl_text = f"TODAY'S CARD  ·  {image_index+1}/{total_images}"
+        hl_text = f"TODAY'S CARD  В·  {image_index+1}/{total_images}"
     bb = draw.textbbox((0, 0), hl_text, font=f_headline)
     draw.text(((W-(bb[2]-bb[0]))//2, header_y), hl_text, font=f_headline, fill=GOLD)
 
     f_count = F('OB', 28)
-    sc_text = f"{n} SLIP{'S' if n > 1 else ''}  ·  TODAY'S SELECTIONS"
+    sc_text = f"{n} SLIP{'S' if n > 1 else ''}  В·  TODAY'S SELECTIONS"
     bb2 = draw.textbbox((0, 0), sc_text, font=f_count)
     draw.text(((W-(bb2[2]-bb2[0]))//2, header_y+80), sc_text, font=f_count, fill=GREY)
 
-    # ── Cards (single column, stacked) ────────────────────────────────────────
+    # в”Ђв”Ђ Cards (single column, stacked) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     CTA_H     = 220
     TOP       = header_y + 140
     BOT_MARG  = CTA_H + 20
@@ -563,15 +563,15 @@ def generate_story(slips, image_index=0, total_images=1):
         # Bet type
         f_btype = F('BB', max(24, int(38 * story_scale)))
         bt = str(slip.get('bet_type','COMBO')).upper()
-        if len(bt) > 20: bt = bt[:20]+'…'
+        if len(bt) > 20: bt = bt[:20]+'вЂ¦'
         bb3 = draw.textbbox((0,0), bt, font=f_btype)
         tw3 = bb3[2]-bb3[0]
         sbtype_y = cy + max(40, int(62 * story_scale))
         draw.text((cx+(cw-tw3)//2+2, sbtype_y+2), bt, font=f_btype, fill=(0,0,0))
         draw.text((cx+(cw-tw3)//2,   sbtype_y),   bt, font=f_btype, fill=WHITE)
 
-        # ── Odds (same auto-fit + split rendering) ──────────────────────────
-        odds_raw = str(slip.get('odds','—'))
+        # в”Ђв”Ђ Odds (same auto-fit + split rendering) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+        odds_raw = str(slip.get('odds','вЂ”'))
         odds_y = cy + max(70, int(110 * story_scale))
 
         if '.' in odds_raw:
@@ -641,7 +641,7 @@ def generate_story(slips, image_index=0, total_images=1):
         sbb = draw.textbbox((0,0), stake_str, font=F('BB', 22))
         draw.text((cx+cw-(sbb[2]-sbb[0])-20, by-1), stake_str, font=F('BB', 22), fill=GOLD)
 
-    # ── CTA section (bottom) ─────────────────────────────────────────────────
+    # в”Ђв”Ђ CTA section (bottom) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     cta_y = H - CTA_H - 10
 
     # Dark BG gradient
@@ -671,7 +671,7 @@ def generate_story(slips, image_index=0, total_images=1):
     draw.text(((W-(url_bb[2]-url_bb[0]))//2, btn_y+btn_h+14), url_text, font=F('OR',22), fill=GREY)
 
     # Social proof line
-    mem_text = "Join 500+ smart bettors  ·  Only £10/month"
+    mem_text = "Join 500+ smart bettors  В·  Only ВЈ10/month"
     mem_bb   = draw.textbbox((0,0), mem_text, font=F('OB',24))
     draw.text(((W-(mem_bb[2]-mem_bb[0]))//2, btn_y+btn_h+46), mem_text, font=F('OB',24), fill=GOLD)
 
@@ -687,7 +687,7 @@ def generate_story_images(slips_data):
 
 
 
-# ── Custom card generator (branded MM post/story cards) ────────────────────
+# в”Ђв”Ђ Custom card generator (branded MM post/story cards) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
 def _wrap_text_custom(text, font, draw, max_width):
     """Word-wrap text to fit within max_width pixels."""
@@ -865,7 +865,7 @@ def generate_custom_story(title, subtitle=""):
     return img
 
 
-# ── Match result card ──────────────────────────────────────────────────────
+# в”Ђв”Ђ Match result card в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
 def _fetch_logo(url, size):
     """Download a logo from a URL, return RGBA PIL image or None."""
@@ -1088,13 +1088,13 @@ def generate_match_story(home_team, away_team, home_score, away_score,
     return img
 
 
-# ── Daily Results infographic (1080×1920) ──────────────────────────────────
+# в”Ђв”Ђ Daily Results infographic (1080Г—1920) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
 def _fetch_logo_crisp(url, display_size):
     """
     Fetch a team logo preserving its original aspect ratio, then centre it
-    on a transparent display_size × display_size RGBA canvas.
-    Fetches at 3× display resolution then downscales with LANCZOS for crispness.
+    on a transparent display_size Г— display_size RGBA canvas.
+    Fetches at 3Г— display resolution then downscales with LANCZOS for crispness.
     """
     try:
         resp = requests.get(url, timeout=10, headers={'User-Agent': 'Mozilla/5.0'})
@@ -1102,13 +1102,13 @@ def _fetch_logo_crisp(url, display_size):
             return None
         raw = Image.open(BytesIO(resp.content)).convert("RGBA")
         w, h = raw.size
-        # Scale to fill a 3× virtual canvas, then fit-scale back to display_size
+        # Scale to fill a 3Г— virtual canvas, then fit-scale back to display_size
         fetch_px = display_size * 3
         scale    = min(fetch_px / max(w, 1), fetch_px / max(h, 1))
         nw       = max(int(w * scale), 1)
         nh       = max(int(h * scale), 1)
         big      = raw.resize((nw, nh), Image.LANCZOS)
-        # Fit into display_size × display_size
+        # Fit into display_size Г— display_size
         scale2 = min(display_size / nw, display_size / nh)
         fw     = max(int(nw * scale2), 1)
         fh     = max(int(nh * scale2), 1)
@@ -1170,87 +1170,170 @@ def _get_ai_background(W, H):
     return bg
 
 
-def generate_daily_results(picks, date_str=""):
+def _get_ai_background_white(W, H):
     """
-    Generate a premium daily results card for Matchday Mentors.
-    Background powered by Nano Banana 2 (Gemini 3.1 Flash Image).
-    Width: 1080 px. Height: dynamic 1080-1920 px.
+    Generate a clean white/light background via Gemini.
+    Falls back to a crisp white gradient.
+    """
+    api_key = os.environ.get('GEMINI_API_KEY', '')
+    if api_key:
+        try:
+            prompt = (
+                "Ultra clean minimal white sports infographic background, "
+                "very subtle pale grey geometric hexagon grid pattern, "
+                "faint football pitch line markings at the very bottom edge, "
+                "premium professional design, pure white and very light grey tones, "
+                "clean modern sports analytics aesthetic, no text, no logos, no people, 4K"
+            )
+            resp = requests.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/"
+                f"gemini-3.1-flash-image-preview:generateContent?key={api_key}",
+                json={
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {"responseModalities": ["IMAGE", "TEXT"]}
+                },
+                timeout=90
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                parts = data.get('candidates', [{}])[0].get('content', {}).get('parts', [])
+                for part in parts:
+                    if 'inlineData' in part:
+                        img_bytes = base64.b64decode(part['inlineData']['data'])
+                        bg = Image.open(BytesIO(img_bytes)).convert('RGB')
+                        return bg.resize((W, H), Image.LANCZOS)
+        except Exception as e:
+            print(f"AI white background failed: {e}")
+    # Fallback: clean white
+    bg = Image.new("RGB", (W, H), (255, 255, 255))
+    d = ImageDraw.Draw(bg)
+    for y in range(H):
+        t = y / H
+        r = int(252 - 6 * t); g = int(252 - 6 * t); b = int(255 - 4 * t)
+        d.line([(0, y), (W, y)], fill=(r, g, b))
+    return bg
+
+
+def _make_team_initial(team_name, size, section_color, dark):
+    """Circular team-initial fallback logo when no logo URL is available."""
+    canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(canvas)
+    if dark:
+        bg_col  = tuple(max(0, int(c * 0.18)) for c in section_color)
+        rim_col = tuple(max(0, int(c * 0.55)) for c in section_color)
+        txt_col = (220, 220, 230)
+    else:
+        bg_col  = tuple(min(255, int(c * 0.15) + 230) for c in section_color)
+        rim_col = tuple(max(0, int(c * 0.60)) for c in section_color)
+        txt_col = (40, 40, 60)
+    d.ellipse([2, 2, size - 3, size - 3], fill=bg_col, outline=rim_col, width=2)
+    initials = (team_name or '?').strip()[:2].upper()
+    fs = max(10, size // 4)
+    try:
+        fnt = F('BB', fs)
+        bb  = d.textbbox((0, 0), initials, font=fnt)
+        d.text(((size - (bb[2] - bb[0])) // 2, (size - (bb[3] - bb[1])) // 2),
+               initials, font=fnt, fill=txt_col)
+    except Exception:
+        pass
+    return canvas
+
+
+def _render_results_card(sections, date_str, total_won, total_picks, win_pct, dark=True):
+    """
+    Render one results card.
+    sections = list of (label, sublabel, picks_list, section_rgb_tuple)
+    dark     = True for dark stadium bg, False for white bg
+    Returns a PIL Image.
     """
     W      = 1080
-    MARGIN = 28
+    MARGIN = 32
 
-    # ── Fixed block heights ───────────────────────────────────────────────────
+    # Fixed heights
     TOPBAR_H    = 8
-    LOGO_H_img  = 76
-    LOGO_PAD_T  = 14
-    SEP_GAP     = 8
-    SEP_H       = 12
-    HEADLINE_H  = 60
-    DATE_H      = 34
-    BADGE_H     = 48
-    BADGE_PAD_B = 18
-    HEADER_H    = (LOGO_PAD_T + LOGO_H_img + SEP_GAP + SEP_H +
-                   HEADLINE_H + DATE_H + BADGE_H + BADGE_PAD_B)
-
-    PAD_TOP     = 16
-    PAD_BOT     = 16
-    ROW_GAP     = 8
-    SUMBAR_GAP  = 14
-    SUMBAR_H    = 84
-    PAT_GAP     = 8
-    PATREON_H   = 126
     BOTBAR_H    = 8
+    LOGO_PAD_T  = 24
+    LOGO_H_img  = 80
+    SEP_H       = 14
+    HEADLINE_H  = 68
+    DATE_H      = 38
+    BADGE_H     = 54
+    BADGE_PAD_B = 22
+    HEADER_H    = LOGO_PAD_T + LOGO_H_img + SEP_H + HEADLINE_H + DATE_H + BADGE_H + BADGE_PAD_B
 
-    MAX_ROW_H   = 116
-    MIN_ROW_H   = 80
+    SEC_H       = 56    # section-header band height
+    ROW_GAP     = 10
+    ROW_MIN     = 100
+    ROW_MAX     = 124
+    PAD_BOT     = 20
+    SUMBAR_GAP  = 18
+    SUMBAR_H    = 88
+    PAT_GAP     = 10
+    PAT_H       = 132
     MAX_H       = 1920
+    MIN_H       = 1080
 
-    n = len(picks)
+    # Total picks on this card
+    all_picks = []
+    for _, _, pl, _ in sections:
+        all_picks.extend(pl)
+    n = len(all_picks)
+    n_sections = len(sections)
 
-    # Sort all picks by odds ascending
-    def _odds(p):
-        try:    return float(p.get('odds', 0))
-        except: return 0.0
-
-    sorted_picks = sorted(picks, key=_odds)
-    total_picks  = n
-    total_won    = sum(1 for p in picks if p.get('won', False))
-    win_pct      = int(total_won / total_picks * 100) if total_picks else 0
-
-    # ── Dynamic row height ────────────────────────────────────────────────────
-    fixed_px = (TOPBAR_H + HEADER_H + PAD_TOP + PAD_BOT +
-                SUMBAR_GAP + SUMBAR_H + PAT_GAP + PATREON_H + BOTBAR_H)
+    fixed_px = (TOPBAR_H + HEADER_H + n_sections * SEC_H +
+                PAD_BOT + SUMBAR_GAP + SUMBAR_H + PAT_GAP + PAT_H + BOTBAR_H)
     avail    = MAX_H - fixed_px
-    ROW_H    = (min(MAX_ROW_H, max(MIN_ROW_H, (avail - (n - 1) * ROW_GAP) // n))
-                if n > 0 else MAX_ROW_H)
-
+    ROW_H    = max(ROW_MIN, min(ROW_MAX, (avail - max(0, n - 1) * ROW_GAP) // n)) if n > 0 else ROW_MAX
     total_rows_px = n * ROW_H + max(0, n - 1) * ROW_GAP
-    H = max(1080, min(MAX_H, fixed_px + total_rows_px))
+    H = max(MIN_H, min(MAX_H, fixed_px + total_rows_px))
 
-    # Row section proportions
-    top_h = int(ROW_H * 0.63)
+    # Row proportions
+    top_h = int(ROW_H * 0.62)
     bot_h = ROW_H - top_h - 1
-    LS    = max(38, min(64, top_h - 10))   # logo display size (aspect-preserved inside)
+    LS    = max(50, min(72, top_h - 8))   # logo size
 
-    # ── Background (Nano Banana 2) ────────────────────────────────────────────
-    bg   = _get_ai_background(W, H)
-    ov   = Image.new("RGBA", (W, H), (4, 6, 14, 205))
-    img  = Image.alpha_composite(bg.convert("RGBA"), ov).convert("RGB")
+    # в”Ђв”Ђ Background в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+    if dark:
+        bg  = _get_ai_background(W, H)
+        ov  = Image.new("RGBA", (W, H), (4, 6, 14, 200))
+        img = Image.alpha_composite(bg.convert("RGBA"), ov).convert("RGB")
+        # Vignette
+        vig = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        vd  = ImageDraw.Draw(vig)
+        for i in range(80):
+            a = int(140 * (i / 80) ** 2)
+            vd.rectangle([i, i, W - i, H - i], outline=(0, 0, 0, a), width=1)
+        img = Image.alpha_composite(img.convert("RGBA"), vig).convert("RGB")
+    else:
+        bg  = _get_ai_background_white(W, H)
+        ov  = Image.new("RGBA", (W, H), (255, 255, 255, 30))
+        img = Image.alpha_composite(bg.convert("RGBA"), ov).convert("RGB")
+
     draw = ImageDraw.Draw(img)
 
-    # Subtle vignette
-    vig = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    vd  = ImageDraw.Draw(vig)
-    for i in range(90):
-        a = int(150 * (i / 90) ** 2)
-        vd.rectangle([i, i, W - i, H - i], outline=(0, 0, 0, a), width=1)
-    img  = Image.alpha_composite(img.convert("RGBA"), vig).convert("RGB")
-    draw = ImageDraw.Draw(img)
+    # Colour palette
+    if dark:
+        TEXT_PRI  = (240, 244, 248)   # primary text
+        TEXT_SEC  = (160, 170, 185)   # secondary text
+        CARD_BG   = (12, 18, 30)      # row card bg base
+        CARD_RIM  = (30, 42, 62)      # row card border
+        SCORE_PIL = (255, 255, 255, 120)  # score pill
+        SCORE_TXT = (255, 255, 255)
+    else:
+        TEXT_PRI  = (15, 20, 35)
+        TEXT_SEC  = (90, 100, 120)
+        CARD_BG   = (255, 255, 255)
+        CARD_RIM  = (220, 224, 235)
+        SCORE_PIL = (15, 20, 35)
+        SCORE_TXT = (255, 255, 255)
 
-    # ── Gold top bar ──────────────────────────────────────────────────────────
+    WIN_COL  = (22, 163, 74)
+    LOSS_COL = (220, 38, 38)
+
+    # в”Ђв”Ђ Gold top bar в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     draw.rectangle([0, 0, W, TOPBAR_H], fill=GOLD)
 
-    # ── Brand logo ────────────────────────────────────────────────────────────
+    # в”Ђв”Ђ Brand logo в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     yc        = TOPBAR_H + LOGO_PAD_T
     logo_path = os.path.join(FONT_DIR, 'logo_white.png')
     if os.path.exists(logo_path):
@@ -1258,32 +1341,40 @@ def generate_daily_results(picks, date_str=""):
         lh    = LOGO_H_img
         lw    = int(lh * blogo.width / blogo.height)
         blogo = blogo.resize((lw, lh), Image.LANCZOS)
+        if not dark:
+            # Invert to dark logo for white background
+            r, g, b_ch, a = blogo.split()
+            inv = Image.merge("RGBA", (
+                ImageChops.invert(r), ImageChops.invert(g), ImageChops.invert(b_ch), a))
+            blogo = inv
         img.paste(blogo, ((W - lw) // 2, yc), blogo)
-        draw  = ImageDraw.Draw(img)
-    yc += LOGO_H_img + SEP_GAP
+        draw = ImageDraw.Draw(img)
+    yc += LOGO_H_img
 
-    # Gold separator
-    draw.rectangle([60, yc, W - 60, yc + 2], fill=GOLD_DIM)
+    # Separator
+    sep_col = GOLD_DIM if dark else (200, 200, 215)
+    draw.rectangle([60, yc + 4, W - 60, yc + 6], fill=sep_col)
     yc += SEP_H
 
-    # ── Headline ──────────────────────────────────────────────────────────────
-    f_hl = F('BB', 58)
+    # в”Ђв”Ђ Headline в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+    f_hl = F('BB', 56)
     hl   = "DAILY RESULTS"
     hlbb = draw.textbbox((0, 0), hl, font=f_hl)
     hx   = (W - (hlbb[2] - hlbb[0])) // 2
-    draw.text((hx + 2, yc + 2), hl, font=f_hl, fill=(0, 0, 0))
-    draw.text((hx,     yc),     hl, font=f_hl, fill=GOLD)
+    if dark:
+        draw.text((hx + 2, yc + 2), hl, font=f_hl, fill=(0, 0, 0))
+    draw.text((hx, yc), hl, font=f_hl, fill=GOLD)
     yc += HEADLINE_H
 
-    # ── Date ──────────────────────────────────────────────────────────────────
+    # в”Ђв”Ђ Date в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     if date_str:
         f_dt = F('OB', 22)
         ds   = date_str.upper()
         dtbb = draw.textbbox((0, 0), ds, font=f_dt)
-        draw.text(((W - (dtbb[2] - dtbb[0])) // 2, yc), ds, font=f_dt, fill=GREY)
+        draw.text(((W - (dtbb[2] - dtbb[0])) // 2, yc), ds, font=f_dt, fill=TEXT_SEC)
     yc += DATE_H
 
-    # ── Win-rate badge ────────────────────────────────────────────────────────
+    # в”Ђв”Ђ Win-rate badge в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     badge_text = f"{total_won} / {total_picks}  GREEN TODAY  -  {win_pct}%"
     f_badge    = F('BB', 26)
     btbb       = draw.textbbox((0, 0), badge_text, font=f_badge)
@@ -1291,215 +1382,282 @@ def generate_daily_results(picks, date_str=""):
     bth        = btbb[3] - btbb[1]
     badge_w    = btw + 64
     badge_x    = (W - badge_w) // 2
-    draw.rounded_rectangle([badge_x, yc, badge_x + badge_w, yc + BADGE_H],
-                           radius=14, fill=(16, 44, 24), outline=GOLD, width=2)
-    draw.text((badge_x + (badge_w - btw) // 2,
-               yc + (BADGE_H - bth) // 2),
-              badge_text, font=f_badge, fill=GOLD)
-    yc += BADGE_H + BADGE_PAD_B + PAD_TOP
+    if dark:
+        draw.rounded_rectangle([badge_x, yc, badge_x + badge_w, yc + BADGE_H],
+                               radius=14, fill=(10, 34, 18), outline=GOLD, width=2)
+        badge_txt_col = GOLD
+    else:
+        draw.rounded_rectangle([badge_x, yc, badge_x + badge_w, yc + BADGE_H],
+                               radius=14, fill=WIN_COL, outline=(12, 120, 55), width=2)
+        badge_txt_col = (255, 255, 255)
+    draw.text((badge_x + (badge_w - btw) // 2, yc + (BADGE_H - bth) // 2),
+              badge_text, font=f_badge, fill=badge_txt_col)
+    yc += BADGE_H + BADGE_PAD_B
 
-    # ── Pick rows ─────────────────────────────────────────────────────────────
+    # в”Ђв”Ђ Sections в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     cw = W - 2 * MARGIN
 
-    for pick in sorted_picks:
-        won      = bool(pick.get('won', False))
-        row_fill = (10, 28, 16) if won else (32, 10, 14)
-        row_bdr  = (30, 82, 46) if won else (82, 22, 30)
-        bar_col  = (52, 199, 89) if won else (229, 56, 68)
+    for sec_label, sec_sub, sec_picks, sec_col in sections:
+        # Section header band
+        sec_r, sec_g, sec_b = sec_col
 
-        cx = MARGIN
-        cy = yc
+        if dark:
+            # Semi-transparent tinted band
+            sec_overlay = Image.new("RGBA", (W, SEC_H), (sec_r, sec_g, sec_b, 55))
+            img = Image.alpha_composite(img.convert("RGBA"), sec_overlay.convert("RGBA")).convert("RGB")
+            draw = ImageDraw.Draw(img)
+            draw.rectangle([0, yc, W, yc + 3], fill=sec_col)               # top rim
+            draw.rectangle([0, yc + SEC_H - 3, W, yc + SEC_H], fill=sec_col)  # bottom rim
+            lbl_col  = (255, 255, 255)
+            sub_col  = (sec_r + (255 - sec_r) // 2, sec_g + (255 - sec_g) // 2, sec_b + (255 - sec_b) // 2)
+            cnt_col  = (220, 220, 230)
+        else:
+            draw.rectangle([0, yc, W, yc + SEC_H], fill=sec_col)
+            lbl_col  = (255, 255, 255)
+            sub_col  = (220, 230, 220)
+            cnt_col  = (255, 255, 255)
 
-        # Shadow
-        draw.rounded_rectangle([cx + 4, cy + 4, cx + cw + 4, cy + ROW_H + 4],
-                               radius=12, fill=(0, 0, 0))
-        # Card background
-        draw.rounded_rectangle([cx, cy, cx + cw, cy + ROW_H],
-                               radius=12, fill=row_fill)
-        draw.rounded_rectangle([cx, cy, cx + cw, cy + ROW_H],
-                               radius=12, outline=row_bdr, width=1)
-        # Left accent bar
-        draw.rounded_rectangle([cx, cy, cx + 6, cy + ROW_H],
-                               radius=12, fill=bar_col)
-        # Right accent bar
-        draw.rounded_rectangle([cx + cw - 6, cy, cx + cw, cy + ROW_H],
-                               radius=12, fill=bar_col)
+        f_sec_lbl = F('BB', 22)
+        f_sec_sub = F('OR', 16)
+        f_sec_cnt = F('OB', 18)
 
-        # ── Team logos ────────────────────────────────────────────────────
-        logo_x_home = cx + 6 + 12
-        logo_x_away = cx + cw - 6 - 12 - LS
-        logo_y      = cy + (top_h - LS) // 2
+        # Label on left
+        draw.text((MARGIN + 6, yc + (SEC_H - 26) // 2), sec_label, font=f_sec_lbl, fill=lbl_col)
+        sub_bb = draw.textbbox((0, 0), sec_sub, font=f_sec_sub)
+        draw.text((MARGIN + 6, yc + SEC_H - 18), sec_sub, font=f_sec_sub, fill=sub_col)
 
-        for logo_url, lx in [
-            (str(pick.get('home_logo_url', '')), logo_x_home),
-            (str(pick.get('away_logo_url', '')), logo_x_away),
-        ]:
-            logo_img = _fetch_logo_crisp(logo_url, LS) if logo_url else None
-            if logo_img:
-                pad  = 6
-                gs   = LS + pad * 2
+        # Count on right
+        cnt_txt = f"{len(sec_picks)} PICKS"
+        cnt_bb  = draw.textbbox((0, 0), cnt_txt, font=f_sec_cnt)
+        draw.text((W - MARGIN - (cnt_bb[2] - cnt_bb[0]) - 6,
+                   yc + (SEC_H - (cnt_bb[3] - cnt_bb[1])) // 2),
+                  cnt_txt, font=f_sec_cnt, fill=cnt_col)
+
+        yc += SEC_H
+
+        # в”Ђв”Ђ Pick rows в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+        for pick in sec_picks:
+            won     = bool(pick.get('won', False))
+            win_col = WIN_COL if won else LOSS_COL
+
+            cx = MARGIN
+            cy = yc
+
+            if dark:
+                row_bg_r = max(0, sec_r // 8)
+                row_bg_g = max(0, sec_g // 8)
+                row_bg_b = max(0, sec_b // 8)
+                r_bg  = (row_bg_r + (8 if won else 12), row_bg_g + (4 if won else 2), row_bg_b + (4 if not won else 2))
+                r_rim = tuple(max(0, int(c * 0.4)) for c in win_col)
+            else:
+                r_bg  = (255, 255, 255)
+                r_rim = (210, 215, 225)
+
+            # Shadow
+            draw.rounded_rectangle([cx + 3, cy + 3, cx + cw + 3, cy + ROW_H + 3],
+                                   radius=10, fill=(0, 0, 0, 60) if dark else (0, 0, 0, 18))
+            # Card
+            draw.rounded_rectangle([cx, cy, cx + cw, cy + ROW_H],
+                                   radius=10, fill=r_bg, outline=r_rim, width=1)
+            # Left accent bar (section color)
+            draw.rounded_rectangle([cx, cy, cx + 7, cy + ROW_H],
+                                   radius=10, fill=sec_col)
+            # Right win/loss bar
+            draw.rounded_rectangle([cx + cw - 7, cy, cx + cw, cy + ROW_H],
+                                   radius=10, fill=win_col)
+
+            # в”Ђв”Ђ Logos в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+            logo_margin_l = cx + 7 + 14
+            logo_margin_r = cx + cw - 7 - 14 - LS
+            logo_y        = cy + (top_h - LS) // 2
+
+            for logo_url, lx, team_name in [
+                (str(pick.get('home_logo_url', '')), logo_margin_l, str(pick.get('home_team', ''))),
+                (str(pick.get('away_logo_url', '')), logo_margin_r, str(pick.get('away_team', ''))),
+            ]:
+                logo_img = _fetch_logo_crisp(logo_url, LS) if logo_url.startswith('http') else None
+                if logo_img is None:
+                    logo_img = _make_team_initial(team_name, LS, sec_col, dark)
+
+                # Glow disc behind logo (white on dark, grey on light)
+                pad = 5
+                gs  = LS + pad * 2
+                glow_col = (255, 255, 255, 40) if dark else (180, 190, 210, 50)
                 glow = Image.new("RGBA", (gs, gs), (0, 0, 0, 0))
-                ImageDraw.Draw(glow).ellipse([0, 0, gs - 1, gs - 1],
-                                            fill=(255, 255, 255, 50))
+                ImageDraw.Draw(glow).ellipse([0, 0, gs - 1, gs - 1], fill=glow_col)
                 img.paste(glow, (lx - pad, logo_y - pad), glow)
                 img.paste(logo_img, (lx, logo_y), logo_img)
                 draw = ImageDraw.Draw(img)
+
+            # в”Ђв”Ђ Team names в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+            name_fs = max(13, min(18, int(LS * 0.30)))
+            f_nm    = F('OB', name_fs)
+            sc_cx   = W // 2
+            sc_half = 62
+
+            HN       = str(pick.get('home_team', ''))
+            hn_start = logo_margin_l + LS + 10
+            hn_max_w = sc_cx - sc_half - hn_start - 4
+            while len(HN) > 2 and draw.textlength(HN, font=f_nm) > hn_max_w:
+                HN = HN[:-1]
+            hn_bb = draw.textbbox((0, 0), HN, font=f_nm)
+            draw.text((hn_start, cy + (top_h - (hn_bb[3] - hn_bb[1])) // 2),
+                      HN, font=f_nm, fill=TEXT_PRI)
+
+            AN     = str(pick.get('away_team', ''))
+            an_end = logo_margin_r - 10
+            an_max_w = an_end - (sc_cx + sc_half + 4)
+            while len(AN) > 2 and draw.textlength(AN, font=f_nm) > an_max_w:
+                AN = AN[:-1]
+            an_bb = draw.textbbox((0, 0), AN, font=f_nm)
+            draw.text((an_end - (an_bb[2] - an_bb[0]),
+                       cy + (top_h - (an_bb[3] - an_bb[1])) // 2),
+                      AN, font=f_nm, fill=TEXT_PRI)
+
+            # в”Ђв”Ђ Score в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+            hs       = pick.get('home_score', '')
+            as_      = pick.get('away_score', '')
+            sc_str   = f"{hs} - {as_}" if hs != '' and as_ != '' else "vs"
+            f_sc     = F('BB', max(22, min(32, int(top_h * 0.50))))
+            scbb     = draw.textbbox((0, 0), sc_str, font=f_sc)
+            sc_w     = scbb[2] - scbb[0]
+            sc_x     = (W - sc_w) // 2
+            sc_y     = cy + (top_h - (scbb[3] - scbb[1])) // 2
+            pill_col = (15, 20, 35) if dark else (40, 44, 60)
+            draw.rounded_rectangle([sc_x - 12, sc_y - 5,
+                                    sc_x + sc_w + 12, sc_y + (scbb[3] - scbb[1]) + 5],
+                                   radius=8, fill=pill_col)
+            draw.text((sc_x, sc_y), sc_str, font=f_sc, fill=(255, 255, 255))
+
+            # в”Ђв”Ђ Divider в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+            div_y   = cy + top_h
+            div_col = (40, 48, 60) if dark else (210, 215, 225)
+            draw.line([(cx + 14, div_y), (cx + cw - 14, div_y)], fill=div_col, width=1)
+
+            # в”Ђв”Ђ Bottom strip в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+            bot_top = div_y + 1
+            bot_mid = bot_top + bot_h // 2
+
+            # Market pill
+            mkt = str(pick.get('market', '')).upper()
+            for k, v in {
+                'OVER/UNDER 2.5': 'O/U 2.5', 'OVER/UNDER 3.5': 'O/U 3.5',
+                'OVER/UNDER 1.5': 'O/U 1.5', 'OVER/UNDER 4.5': 'O/U 4.5',
+                'BOTH TEAMS TO SCORE': 'BTTS', 'BOTH TEAMS SCORE': 'BTTS',
+                'TOTAL CARDS': 'CARDS', 'MATCH RESULT': '1X2',
+                'DOUBLE CHANCE': 'DBL', 'ASIAN HANDICAP': 'HCP',
+            }.items():
+                if k in mkt:
+                    mkt = v
+                    break
+            if len(mkt) > 11:
+                mkt = mkt[:11]
+
+            f_bot   = F('OB', max(12, min(15, bot_h - 6)))
+            f_bot_b = F('BB', max(12, min(15, bot_h - 6)))
+
+            pill_bb = draw.textbbox((0, 0), mkt, font=f_bot)
+            pill_w  = (pill_bb[2] - pill_bb[0]) + 16
+            pill_h  = min(bot_h - 4, 28)
+            pill_x  = cx + 16
+            pill_y  = bot_mid - pill_h // 2
+            if dark:
+                mkt_bg  = tuple(max(0, int(c * 0.20)) for c in sec_col)
+                mkt_rim = tuple(max(0, int(c * 0.50)) for c in sec_col)
+                mkt_txt = tuple(min(255, int(c * 0.75) + 100) for c in sec_col)
             else:
-                draw.ellipse([lx, logo_y, lx + LS, logo_y + LS],
-                             fill=(22, 52, 30), outline=row_bdr, width=1)
+                mkt_bg  = tuple(min(255, int(c * 0.12) + 235) for c in sec_col)
+                mkt_rim = tuple(max(0, int(c * 0.55)) for c in sec_col)
+                mkt_txt = tuple(max(0, int(c * 0.65)) for c in sec_col)
+            draw.rounded_rectangle([pill_x, pill_y, pill_x + pill_w, pill_y + pill_h],
+                                   radius=6, fill=mkt_bg, outline=mkt_rim, width=1)
+            draw.text((pill_x + 8, pill_y + (pill_h - (pill_bb[3] - pill_bb[1])) // 2),
+                      mkt, font=f_bot, fill=mkt_txt)
 
-        # ── Team names ────────────────────────────────────────────────────
-        f_nm      = F('OB', max(12, min(17, int(LS * 0.33))))
-        sc_cx     = W // 2
-        score_half = 66     # half-width reserved for score block
+            # Pick text + odds
+            pick_txt = str(pick.get('pick', ''))
+            try:    odds_txt = f"@ {float(pick.get('odds', 0)):.2f}"
+            except: odds_txt = f"@ {pick.get('odds', '')}"
 
-        HN        = str(pick.get('home_team', ''))
-        hn_start  = logo_x_home + LS + 8
-        hn_max_w  = sc_cx - score_half - hn_start - 6
-        while len(HN) > 2 and draw.textlength(HN, font=f_nm) > hn_max_w:
-            HN = HN[:-1]
-        hn_bb = draw.textbbox((0, 0), HN, font=f_nm)
-        draw.text((hn_start,
-                   cy + (top_h - (hn_bb[3] - hn_bb[1])) // 2),
-                  HN, font=f_nm, fill=(230, 240, 235))
+            px  = pill_x + pill_w + 10
+            pb  = draw.textbbox((0, 0), pick_txt, font=f_bot)
+            draw.text((px, bot_mid - (pb[3] - pb[1]) // 2),
+                      pick_txt, font=f_bot, fill=TEXT_PRI)
 
-        AN        = str(pick.get('away_team', ''))
-        an_end    = logo_x_away - 8
-        an_max_w  = an_end - (sc_cx + score_half + 6)
-        while len(AN) > 2 and draw.textlength(AN, font=f_nm) > an_max_w:
-            AN = AN[:-1]
-        an_bb = draw.textbbox((0, 0), AN, font=f_nm)
-        draw.text((an_end - (an_bb[2] - an_bb[0]),
-                   cy + (top_h - (an_bb[3] - an_bb[1])) // 2),
-                  AN, font=f_nm, fill=(230, 240, 235))
+            gold_col = GOLD if dark else (160, 110, 0)
+            ob  = draw.textbbox((0, 0), odds_txt, font=f_bot_b)
+            ox  = px + (pb[2] - pb[0]) + 8
+            draw.text((ox, bot_mid - (ob[3] - ob[1]) // 2),
+                      odds_txt, font=f_bot_b, fill=gold_col)
 
-        # ── Score (centred) ───────────────────────────────────────────────
-        hs_val    = pick.get('home_score', '')
-        as_val    = pick.get('away_score', '')
-        score_str = (f"{hs_val} - {as_val}"
-                     if hs_val != '' and as_val != '' else "vs")
-        f_sc      = F('BB', max(20, min(30, int(top_h * 0.52))))
-        scbb      = draw.textbbox((0, 0), score_str, font=f_sc)
-        sc_w      = scbb[2] - scbb[0]
-        sc_x      = (W - sc_w) // 2
-        sc_y      = cy + (top_h - (scbb[3] - scbb[1])) // 2
-        # Dark pill behind score for legibility
-        draw.rounded_rectangle([sc_x - 10, sc_y - 4,
-                                 sc_x + sc_w + 10, sc_y + (scbb[3] - scbb[1]) + 4],
-                               radius=8, fill=(0, 0, 0))
-        draw.text((sc_x, sc_y), score_str, font=f_sc, fill=WHITE)
+            # WIN / LOSS badge
+            badge_txt = "WIN" if won else "LOSS"
+            wlbb      = draw.textbbox((0, 0), badge_txt, font=f_bot_b)
+            wl_w      = (wlbb[2] - wlbb[0]) + 22
+            wl_h      = min(bot_h - 4, 28)
+            wl_x      = cx + cw - 14 - wl_w
+            wl_y      = bot_mid - wl_h // 2
+            draw.rounded_rectangle([wl_x, wl_y, wl_x + wl_w, wl_y + wl_h],
+                                   radius=6, fill=win_col)
+            draw.text((wl_x + 11, wl_y + (wl_h - (wlbb[3] - wlbb[1])) // 2),
+                      badge_txt, font=f_bot_b, fill=(255, 255, 255))
 
-        # ── Divider ───────────────────────────────────────────────────────
-        div_y = cy + top_h
-        draw.line([(cx + 10, div_y), (cx + cw - 10, div_y)],
-                  fill=row_bdr, width=1)
+            yc += ROW_H + ROW_GAP
 
-        # ── Bottom strip: market pill  pick  @ odds  WIN/LOSS ────────────
-        bot_top = div_y + 1
-        bot_mid = bot_top + bot_h // 2
+        # Small gap after last pick of section (replace ROW_GAP with SEC_GAP)
+        yc -= ROW_GAP   # remove last row gap
 
-        # Market pill
-        mkt = str(pick.get('market', '')).upper()
-        for k, v in {
-            'OVER/UNDER 2.5': 'O/U 2.5', 'OVER/UNDER 3.5': 'O/U 3.5',
-            'OVER/UNDER 1.5': 'O/U 1.5', 'OVER/UNDER 4.5': 'O/U 4.5',
-            'BOTH TEAMS TO SCORE': 'BTTS', 'BOTH TEAMS SCORE': 'BTTS',
-            'TOTAL CARDS': 'CARDS', 'MATCH RESULT': '1X2',
-            'DOUBLE CHANCE': 'DBL', 'ASIAN HANDICAP': 'HCP',
-        }.items():
-            if k in mkt:
-                mkt = v
-                break
-        if len(mkt) > 11:
-            mkt = mkt[:11]
+    yc += PAD_BOT
 
-        f_bot   = F('OB', max(11, min(14, bot_h - 6)))
-        f_bot_b = F('BB', max(11, min(14, bot_h - 6)))
-
-        pill_bb = draw.textbbox((0, 0), mkt, font=f_bot)
-        pill_w  = (pill_bb[2] - pill_bb[0]) + 14
-        pill_h  = min(bot_h - 4, 26)
-        pill_x  = cx + 16
-        pill_y  = bot_mid - pill_h // 2
-        draw.rounded_rectangle([pill_x, pill_y, pill_x + pill_w, pill_y + pill_h],
-                               radius=6,
-                               fill=(18, 54, 28) if won else (48, 14, 20),
-                               outline=(44, 108, 56) if won else (88, 26, 36),
-                               width=1)
-        draw.text((pill_x + 7,
-                   pill_y + (pill_h - (pill_bb[3] - pill_bb[1])) // 2),
-                  mkt, font=f_bot,
-                  fill=(180, 225, 195) if won else (225, 160, 168))
-
-        # Pick text
-        pick_txt = str(pick.get('pick', ''))
-        try:    odds_txt = f"@ {float(pick.get('odds', 0)):.2f}"
-        except: odds_txt = f"@ {pick.get('odds', '')}"
-
-        px  = pill_x + pill_w + 10
-        pb  = draw.textbbox((0, 0), pick_txt, font=f_bot)
-        draw.text((px, bot_mid - (pb[3] - pb[1]) // 2),
-                  pick_txt, font=f_bot, fill=WHITE)
-
-        # Odds (gold)
-        ob  = draw.textbbox((0, 0), odds_txt, font=f_bot_b)
-        ox  = px + (pb[2] - pb[0]) + 8
-        draw.text((ox, bot_mid - (ob[3] - ob[1]) // 2),
-                  odds_txt, font=f_bot_b, fill=GOLD)
-
-        # WIN / LOSS badge
-        badge_txt = "WIN" if won else "LOSS"
-        wlbb      = draw.textbbox((0, 0), badge_txt, font=f_bot_b)
-        wl_w      = (wlbb[2] - wlbb[0]) + 20
-        wl_h      = min(bot_h - 4, 26)
-        wl_x      = cx + cw - 14 - wl_w
-        wl_y      = bot_mid - wl_h // 2
-        draw.rounded_rectangle([wl_x, wl_y, wl_x + wl_w, wl_y + wl_h],
-                               radius=6,
-                               fill=(52, 199, 89) if won else (229, 56, 68))
-        draw.text((wl_x + 10, wl_y + (wl_h - (wlbb[3] - wlbb[1])) // 2),
-                  badge_txt, font=f_bot_b, fill=WHITE)
-
-        yc += ROW_H + ROW_GAP
-
-    yc = yc - ROW_GAP + PAD_BOT
-
-    # ── Summary bar ───────────────────────────────────────────────────────────
+    # в”Ђв”Ђ Summary bar в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     yc += SUMBAR_GAP
     sum_y = yc
-
-    for gy in range(SUMBAR_H):
-        t  = gy / SUMBAR_H
-        rc = int(14 + 18 * t); gc = int(46 + 38 * t); bc = int(24 + 20 * t)
-        draw.line([(MARGIN, sum_y + gy), (W - MARGIN, sum_y + gy)],
-                  fill=(rc, gc, bc))
-    draw.rounded_rectangle([MARGIN, sum_y, W - MARGIN, sum_y + SUMBAR_H],
-                           radius=16, outline=GOLD, width=3)
+    if dark:
+        for gy in range(SUMBAR_H):
+            t = gy / SUMBAR_H
+            draw.line([(MARGIN, sum_y + gy), (W - MARGIN, sum_y + gy)],
+                      fill=(int(14 + 18 * t), int(46 + 38 * t), int(24 + 20 * t)))
+        draw.rounded_rectangle([MARGIN, sum_y, W - MARGIN, sum_y + SUMBAR_H],
+                               radius=16, outline=GOLD, width=3)
+        sum_txt_col = GOLD
+    else:
+        draw.rounded_rectangle([MARGIN, sum_y, W - MARGIN, sum_y + SUMBAR_H],
+                               radius=16, fill=WIN_COL, outline=(12, 120, 55), width=2)
+        sum_txt_col = (255, 255, 255)
 
     sum_text = f"{total_won} / {total_picks}  GREEN TODAY  -  {win_pct}%"
-    f_sum    = F('BB', max(30, min(46, SUMBAR_H - 26)))
-    sbb2     = draw.textbbox((0, 0), sum_text, font=f_sum)
-    draw.text(((W - (sbb2[2] - sbb2[0])) // 2,
-               sum_y + (SUMBAR_H - (sbb2[3] - sbb2[1])) // 2),
-              sum_text, font=f_sum, fill=GOLD)
+    f_sum    = F('BB', max(30, min(42, SUMBAR_H - 28)))
+    sbb      = draw.textbbox((0, 0), sum_text, font=f_sum)
+    draw.text(((W - (sbb[2] - sbb[0])) // 2, sum_y + (SUMBAR_H - (sbb[3] - sbb[1])) // 2),
+              sum_text, font=f_sum, fill=sum_txt_col)
 
     yc = sum_y + SUMBAR_H + PAT_GAP
 
-    # ── Patreon footer ────────────────────────────────────────────────────────
+    # в”Ђв”Ђ Patreon footer в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     pat_y = yc
-    for py in range(pat_y, H - BOTBAR_H):
-        t  = (py - pat_y) / max(H - BOTBAR_H - pat_y, 1)
-        rc = int(6 + 4 * t); gc = int(14 + 8 * t); bc = int(10 + 4 * t)
-        draw.line([(0, py), (W, py)], fill=(rc, gc, bc))
-    draw.rectangle([0, pat_y, W, pat_y + 3], fill=GOLD)
+    if dark:
+        for py in range(pat_y, H - BOTBAR_H):
+            t = (py - pat_y) / max(H - BOTBAR_H - pat_y, 1)
+            draw.line([(0, py), (W, py)],
+                      fill=(int(6 + 4 * t), int(14 + 8 * t), int(10 + 4 * t)))
+        draw.rectangle([0, pat_y, W, pat_y + 3], fill=GOLD)
+        pat_line1_col = (240, 244, 248)
+        pat_line2_col = GOLD
+        pat_line3_col = (140, 150, 165)
+    else:
+        draw.rectangle([0, pat_y, W, H - BOTBAR_H], fill=(248, 249, 252))
+        draw.rectangle([0, pat_y, W, pat_y + 3], fill=(200, 200, 215))
+        pat_line1_col = (20, 25, 40)
+        pat_line2_col = (140, 100, 0)
+        pat_line3_col = (100, 110, 130)
 
     pat_logo_path = os.path.join(FONT_DIR, 'patreon_logo.png')
     pat_logo_h    = 60
     pat_pad_x     = 30
-    pat_mid_y     = pat_y + PATREON_H // 2
+    pat_mid_y     = pat_y + PAT_H // 2
 
     line1 = "Full Slips + Bankroll & Risk Mgmt + Masterclass"
-    line2 = "Join 500+ smart bettors  -  only £10/month"
+    line2 = "Join 500+ smart bettors  -  only ВЈ10/month"
     line3 = "patreon.com/Matchdaymentors"
 
     if os.path.exists(pat_logo_path):
@@ -1510,25 +1668,86 @@ def generate_daily_results(picks, date_str=""):
         img.paste(pl, (pat_pad_x, pat_mid_y - pat_logo_h // 2), pl)
         draw       = ImageDraw.Draw(img)
         div_x      = pat_pad_x + pat_logo_w + 22
-        draw.rectangle([div_x, pat_y + 16, div_x + 2, H - BOTBAR_H - 14],
-                       fill=GOLD_DIM)
+        draw.rectangle([div_x, pat_y + 16, div_x + 2, H - BOTBAR_H - 14], fill=GOLD_DIM)
         tx = div_x + 22
-        draw.text((tx, pat_mid_y - 36), line1, font=F('BB', 20), fill=WHITE)
-        draw.text((tx, pat_mid_y - 10), line2, font=F('OB', 18), fill=GOLD)
-        draw.text((tx, pat_mid_y + 16), line3, font=F('OR', 16), fill=GREY)
+        draw.text((tx, pat_mid_y - 36), line1, font=F('BB', 20), fill=pat_line1_col)
+        draw.text((tx, pat_mid_y - 10), line2, font=F('OB', 18), fill=pat_line2_col)
+        draw.text((tx, pat_mid_y + 16), line3, font=F('OR', 16), fill=pat_line3_col)
     else:
         for txt, fnt, col, dy in [
-            (line1, F('BB', 22), WHITE, -36),
-            (line2, F('OB', 19), GOLD,  -8),
-            (line3, F('OR', 17), GREY,   20),
+            (line1, F('BB', 22), pat_line1_col, -36),
+            (line2, F('OB', 19), pat_line2_col, -8),
+            (line3, F('OR', 17), pat_line3_col, 20),
         ]:
             bb = draw.textbbox((0, 0), txt, font=fnt)
-            draw.text(((W - (bb[2] - bb[0])) // 2, pat_mid_y + dy),
-                      txt, font=fnt, fill=col)
+            draw.text(((W - (bb[2] - bb[0])) // 2, pat_mid_y + dy), txt, font=fnt, fill=col)
 
     draw.rectangle([0, H - BOTBAR_H, W, H], fill=GOLD)
 
     return img
+
+
+def generate_daily_results(picks, date_str=""):
+    """
+    Generate premium daily results cards for Matchday Mentors.
+    Backgrounds powered by Nano Banana 2 (Gemini 3.1 Flash Image).
+
+    Returns a list of PIL Images:
+      - Card 1 dark  (safe + value picks)
+      - Card 2 dark  (system 2.0+ picks, if any)
+      - Card 1 white (same picks, white background)
+      - Card 2 white (system 2.0+ picks, white bg, if any)
+    """
+    def _odds(p):
+        try:    return float(p.get('odds', 0) or 0)
+        except: return 0.0
+
+    safe   = sorted([p for p in picks if _odds(p) < 1.5],            key=_odds)
+    value  = sorted([p for p in picks if 1.5 <= _odds(p) < 2.0],     key=_odds)
+    system = sorted([p for p in picks if _odds(p) >= 2.0],           key=_odds)
+
+    total_picks = len(picks)
+    total_won   = sum(1 for p in picks if p.get('won', False))
+    win_pct     = int(total_won / total_picks * 100) if total_picks else 0
+
+    # Section colour palette
+    SAFE_COL   = (22, 163, 74)    # green
+    VALUE_COL  = (202, 138, 4)    # amber
+    SYSTEM_COL = (220, 38, 38)    # red
+
+    # Build card 1 sections (safe + value)
+    card1_sections = []
+    if safe:  card1_sections.append(('SAFE PICKS',  '< 1.50 ODDS',   safe,   SAFE_COL))
+    if value: card1_sections.append(('VALUE PICKS', '1.50 вЂ“ 2.00',   value,  VALUE_COL))
+
+    # Build card 2 sections (system bets)
+    card2_sections = []
+    if system: card2_sections.append(('SYSTEM BETS', '2.00+ ODDS', system, SYSTEM_COL))
+
+    # If everything is in one tier, just put it all in card 1
+    if not card1_sections and card2_sections:
+        card1_sections = card2_sections
+        card2_sections = []
+
+    results = []
+
+    # Dark versions
+    if card1_sections:
+        print("Generating dark card 1 (safe + value)...")
+        results.append(_render_results_card(card1_sections, date_str, total_won, total_picks, win_pct, dark=True))
+    if card2_sections:
+        print("Generating dark card 2 (system bets)...")
+        results.append(_render_results_card(card2_sections, date_str, total_won, total_picks, win_pct, dark=True))
+
+    # White versions
+    if card1_sections:
+        print("Generating white card 1 (safe + value)...")
+        results.append(_render_results_card(card1_sections, date_str, total_won, total_picks, win_pct, dark=False))
+    if card2_sections:
+        print("Generating white card 2 (system bets)...")
+        results.append(_render_results_card(card2_sections, date_str, total_won, total_picks, win_pct, dark=False))
+
+    return results
 
 
 if __name__ == '__main__':

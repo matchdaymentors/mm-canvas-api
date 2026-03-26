@@ -208,12 +208,25 @@ def generate_daily_results_endpoint():
 
         print(f"Generating daily results: {won}/{total} won, date={date_str!r}")
 
-        img = generate_daily_results(picks, date_str)
-        url = upload_to_cloudinary(img)
+        imgs = generate_daily_results(picks, date_str)
+        # Support both single image (legacy) and list of images (new)
+        if not isinstance(imgs, list):
+            imgs = [imgs]
+
+        urls = []
+        for i, img in enumerate(imgs):
+            print(f"Uploading daily results image {i+1}/{len(imgs)} to Cloudinary...")
+            urls.append(upload_to_cloudinary(img))
+
+        # Labels: dark-card1, dark-card2, white-card1, white-card2
+        labels = ['dark_card1', 'dark_card2', 'white_card1', 'white_card2']
+        labeled = {labels[i]: urls[i] for i in range(min(len(urls), len(labels)))}
 
         return jsonify({
             'success': True,
-            'image_url': url,
+            'image_url': urls[0],        # backward compat
+            'image_urls': urls,
+            'cards': labeled,
             'won': won,
             'total': total,
             'win_rate': round(pct * 100, 1)
