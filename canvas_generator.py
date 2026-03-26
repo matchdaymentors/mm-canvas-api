@@ -1239,11 +1239,12 @@ def _make_team_initial(team_name, size, section_color, dark):
     return canvas
 
 
-def _render_results_card(sections, date_str, total_won, total_picks, win_pct, dark=True):
+def _render_results_card(sections, date_str, total_won, total_picks, win_pct, dark=True, bg_raw=None):
     """
     Render one results card.
     sections = list of (label, sublabel, picks_list, section_rgb_tuple)
     dark     = True for dark stadium bg, False for white bg
+    bg_raw   = pre-generated PIL background image (pass to avoid duplicate Gemini calls)
     Returns a PIL Image.
     """
     W      = 1080
@@ -1294,7 +1295,10 @@ def _render_results_card(sections, date_str, total_won, total_picks, win_pct, da
 
     # в”Ђв”Ђ Background в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
     if dark:
-        bg  = _get_ai_background(W, H)
+        if bg_raw is not None:
+            bg = bg_raw.resize((W, H), Image.LANCZOS)
+        else:
+            bg = _get_ai_background(W, H)
         ov  = Image.new("RGBA", (W, H), (4, 6, 14, 200))
         img = Image.alpha_composite(bg.convert("RGBA"), ov).convert("RGB")
         # Vignette
@@ -1305,7 +1309,10 @@ def _render_results_card(sections, date_str, total_won, total_picks, win_pct, da
             vd.rectangle([i, i, W - i, H - i], outline=(0, 0, 0, a), width=1)
         img = Image.alpha_composite(img.convert("RGBA"), vig).convert("RGB")
     else:
-        bg  = _get_ai_background_white(W, H)
+        if bg_raw is not None:
+            bg = bg_raw.resize((W, H), Image.LANCZOS)
+        else:
+            bg = _get_ai_background_white(W, H)
         ov  = Image.new("RGBA", (W, H), (255, 255, 255, 30))
         img = Image.alpha_composite(bg.convert("RGBA"), ov).convert("RGB")
 
@@ -1733,21 +1740,27 @@ def generate_daily_results(picks, date_str=""):
 
     results = []
 
+    # Pre-generate AI backgrounds ONCE each (reused across cards to avoid duplicate API calls)
+    print("Generating AI dark background (Nano Banana 2)...")
+    dark_bg = _get_ai_background(1080, 1920)
+    print("Generating AI white background (Nano Banana 2)...")
+    white_bg = _get_ai_background_white(1080, 1920)
+
     # Dark versions
     if card1_sections:
-        print("Generating dark card 1 (safe + value)...")
-        results.append(_render_results_card(card1_sections, date_str, total_won, total_picks, win_pct, dark=True))
+        print("Rendering dark card 1 (safe + value)...")
+        results.append(_render_results_card(card1_sections, date_str, total_won, total_picks, win_pct, dark=True, bg_raw=dark_bg))
     if card2_sections:
-        print("Generating dark card 2 (system bets)...")
-        results.append(_render_results_card(card2_sections, date_str, total_won, total_picks, win_pct, dark=True))
+        print("Rendering dark card 2 (system bets)...")
+        results.append(_render_results_card(card2_sections, date_str, total_won, total_picks, win_pct, dark=True, bg_raw=dark_bg))
 
     # White versions
     if card1_sections:
-        print("Generating white card 1 (safe + value)...")
-        results.append(_render_results_card(card1_sections, date_str, total_won, total_picks, win_pct, dark=False))
+        print("Rendering white card 1 (safe + value)...")
+        results.append(_render_results_card(card1_sections, date_str, total_won, total_picks, win_pct, dark=False, bg_raw=white_bg))
     if card2_sections:
-        print("Generating white card 2 (system bets)...")
-        results.append(_render_results_card(card2_sections, date_str, total_won, total_picks, win_pct, dark=False))
+        print("Rendering white card 2 (system bets)...")
+        results.append(_render_results_card(card2_sections, date_str, total_won, total_picks, win_pct, dark=False, bg_raw=white_bg))
 
     return results
 
