@@ -1402,10 +1402,11 @@ def _render_results_card(sections, date_str, total_won, total_picks, win_pct, da
         sec_r, sec_g, sec_b = sec_col
 
         if dark:
-            # Semi-transparent tinted band
-            sec_overlay = Image.new("RGBA", (W, SEC_H), (sec_r, sec_g, sec_b, 55))
-            img = Image.alpha_composite(img.convert("RGBA"), sec_overlay.convert("RGBA")).convert("RGB")
-            draw = ImageDraw.Draw(img)
+            # Pre-blended solid tint (dark bg + 15% section colour)
+            blend = (max(0, min(255, int(8  + sec_r * 0.15))),
+                     max(0, min(255, int(12 + sec_g * 0.15))),
+                     max(0, min(255, int(20 + sec_b * 0.15))))
+            draw.rectangle([0, yc, W, yc + SEC_H], fill=blend)
             draw.rectangle([0, yc, W, yc + 3], fill=sec_col)               # top rim
             draw.rectangle([0, yc + SEC_H - 3, W, yc + SEC_H], fill=sec_col)  # bottom rim
             lbl_col  = (255, 255, 255)
@@ -1454,8 +1455,9 @@ def _render_results_card(sections, date_str, total_won, total_picks, win_pct, da
                 r_rim = (210, 215, 225)
 
             # Shadow
+            shadow_col = (5, 8, 14) if dark else (210, 215, 225)
             draw.rounded_rectangle([cx + 3, cy + 3, cx + cw + 3, cy + ROW_H + 3],
-                                   radius=10, fill=(0, 0, 0, 60) if dark else (0, 0, 0, 18))
+                                   radius=10, fill=shadow_col)
             # Card
             draw.rounded_rectangle([cx, cy, cx + cw, cy + ROW_H],
                                    radius=10, fill=r_bg, outline=r_rim, width=1)
