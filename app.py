@@ -239,6 +239,67 @@ def generate_daily_results_endpoint():
         return jsonify({'error': str(e), 'traceback': error_msg}), 500
 
 
+@app.route('/generate/social-image', methods=['POST'])
+def generate_social_image():
+    """
+    Generate a standalone social media image via Gemini (Nano Banana 2).
+    Body: { "prompt": "...", "size": "post" | "story" }
+    Returns: { "url": "https://..." }
+    """
+    try:
+        data   = request.get_json(force=True, silent=True) or {}
+        prompt = data.get('prompt', '').strip()
+        size   = data.get('size', 'post').lower()   # post=1080x1080, story=1080x1920
+
+        if not prompt:
+            return jsonify({'error': 'prompt is required'}), 400
+
+        api_key = os.environ.get('GEMINI_API_KEY', '')
+        if not api_key:
+            return jsonify({'error': 'GEMINI_API_KEY not configured on server'}), 500
+
+        W = 1080
+        H = 1080 if size == 'post' else 1920
+
+        print(f"Calling Gemini for social image ({W}x{H})...")
+        resp = requests.post(
+            f'https://generativelanguage.googleapis.com/v1beta/models/'
+            f'gemini-3.1-flash-image-preview:generateContent?key={api_key}',
+            json={
+                'contents': [{'parts': [{'text': prompt}]}],
+                'generationConfig': {'responseModalities': ['IMAGE', 'TEXT']}
+            },
+            timeout=120
+        )
+
+        if resp.status_code != 200:
+            return jsonify({'error': f'Gemini error {resp.status_code}', 'detail': resp.text[:400]}), 500
+
+        parts = resp.json().get('candidates', [{}])[0].get('content', {}).get('parts', [])
+        img_bytes = None
+        for part in parts:
+            if 'inlineData' in part:
+                img_bytes = base64.b64decode(part['inlineData']['data'])
+                break
+
+        if not img_bytes:
+            return jsonify({'error': 'Gemini returned no image', 'raw': str(parts)[:400]}), 500
+
+        from PIL import Image as PILImage
+        from io import BytesIO as _BytesIO
+        img = PILImage.open(_BytesIO(img_bytes)).convert('RGB')
+        img = img.resize((W, H), PILImage.LANCZOS)
+
+        url = upload_to_cloudinary(img)
+        print(f"Social image uploaded: {url}")
+        return jsonify({'success': True, 'url': url, 'width': W, 'height': H})
+
+    except Exception as e:
+        error_msg = traceback.format_exc()
+        print(f"ERROR in /generate/social-image: {error_msg}")
+        return jsonify({'error': str(e), 'traceback': error_msg}), 500
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
