@@ -219,8 +219,8 @@ def generate_daily_results_endpoint():
             print(f"Uploading daily results image {i+1}/{len(imgs)} to Cloudinary...")
             urls.append(upload_to_cloudinary(img))
 
-        # Labels: dark-card1, dark-card2, white-card1, white-card2
-        labels = ['dark_card1', 'dark_card2', 'white_card1', 'white_card2']
+        # Labels: card1 (Odds < 1.50), card2 (Odds 1.50-2.00), card3 (Odds > 2.00)
+        labels = ['card1', 'card2', 'card3']
         labeled = {labels[i]: urls[i] for i in range(min(len(urls), len(labels)))}
 
         return jsonify({
