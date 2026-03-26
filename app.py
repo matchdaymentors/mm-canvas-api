@@ -285,11 +285,26 @@ def generate_social_image():
         if not img_bytes:
             return jsonify({'error': 'Gemini returned no image', 'raw': str(parts)[:400]}), 500
 
-        from PIL import Image as PILImage
+        from PIL import Image as PILImage, ImageDraw as PILDraw, ImageChops as PILChops
         from io import BytesIO as _BytesIO
-        img = PILImage.open(_BytesIO(img_bytes)).convert('RGB')
+        img = PILImage.open(_BytesIO(img_bytes)).convert('RGBA')
         img = img.resize((W, H), PILImage.LANCZOS)
 
+        # ── Overlay MM logo (bottom-right corner) ──────────────────────────
+        logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logo_white.png')
+        if os.path.exists(logo_path):
+            logo = PILImage.open(logo_path).convert('RGBA')
+            logo_h = int(H * 0.07)          # 7% of card height
+            logo_w = int(logo_h * logo.width / logo.height)
+            logo   = logo.resize((logo_w, logo_h), PILImage.LANCZOS)
+            # Semi-transparent: multiply alpha channel by 0.85
+            r, g, b, a = logo.split()
+            a = a.point(lambda x: int(x * 0.85))
+            logo = PILImage.merge('RGBA', (r, g, b, a))
+            pad  = int(W * 0.03)
+            img.paste(logo, (W - logo_w - pad, H - logo_h - pad), logo)
+
+        img = img.convert('RGB')
         url = upload_to_cloudinary(img)
         print(f"Social image uploaded: {url}")
         return jsonify({'success': True, 'url': url, 'width': W, 'height': H})
