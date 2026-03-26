@@ -1298,7 +1298,13 @@ def _render_results_card(sections, date_str, total_won, total_picks, win_pct, da
         if bg_raw is not None:
             bg = bg_raw.resize((W, H), Image.LANCZOS)
         else:
-            bg = _get_ai_background(W, H)
+            # Fast gradient fallback — no Gemini call
+            bg = Image.new("RGB", (W, H))
+            _d = ImageDraw.Draw(bg)
+            for _y in range(H):
+                _t = _y / H
+                _d.line([(0, _y), (W, _y)],
+                        fill=(int(8 + 4 * _t), int(10 + 6 * _t), int(24 + 14 * _t)))
         ov  = Image.new("RGBA", (W, H), (4, 6, 14, 200))
         img = Image.alpha_composite(bg.convert("RGBA"), ov).convert("RGB")
         # Vignette
@@ -1312,7 +1318,13 @@ def _render_results_card(sections, date_str, total_won, total_picks, win_pct, da
         if bg_raw is not None:
             bg = bg_raw.resize((W, H), Image.LANCZOS)
         else:
-            bg = _get_ai_background_white(W, H)
+            # Fast white gradient fallback — no Gemini call
+            bg = Image.new("RGB", (W, H))
+            _d = ImageDraw.Draw(bg)
+            for _y in range(H):
+                _t = _y / H
+                _d.line([(0, _y), (W, _y)],
+                        fill=(int(252 - 6 * _t), int(252 - 6 * _t), int(255 - 4 * _t)))
         ov  = Image.new("RGBA", (W, H), (255, 255, 255, 30))
         img = Image.alpha_composite(bg.convert("RGBA"), ov).convert("RGB")
 
