@@ -1696,10 +1696,12 @@ def _render_results_card(sections, date_str, total_won, total_picks, win_pct, da
     return img
 
 
-def generate_daily_results(picks, date_str=""):
+def generate_daily_results(picks, date_str="", ai_background=False):
     """
     Generate premium daily results cards for Matchday Mentors.
-    Backgrounds powered by Nano Banana 2 (Gemini 3.1 Flash Image).
+
+    ai_background=False (default): uses fast gradient fallback (fits in 30s proxy limit)
+    ai_background=True           : calls Gemini for AI backgrounds (slower, ~3 min)
 
     Returns a list of PIL Images:
       - Card 1 dark  (safe + value picks)
@@ -1740,11 +1742,16 @@ def generate_daily_results(picks, date_str=""):
 
     results = []
 
-    # Pre-generate AI backgrounds ONCE each (reused across cards to avoid duplicate API calls)
-    print("Generating AI dark background (Nano Banana 2)...")
-    dark_bg = _get_ai_background(1080, 1920)
-    print("Generating AI white background (Nano Banana 2)...")
-    white_bg = _get_ai_background_white(1080, 1920)
+    # Pre-generate backgrounds ONCE (reused across cards)
+    if ai_background:
+        print("Generating AI dark background (Nano Banana 2)...")
+        dark_bg = _get_ai_background(1080, 1920)
+        print("Generating AI white background (Nano Banana 2)...")
+        white_bg = _get_ai_background_white(1080, 1920)
+    else:
+        print("Using gradient backgrounds (fast mode)...")
+        dark_bg = None   # _render_results_card will use gradient fallback
+        white_bg = None
 
     # Dark versions
     if card1_sections:

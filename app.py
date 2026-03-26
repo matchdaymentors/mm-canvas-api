@@ -186,9 +186,10 @@ def generate_daily_results_endpoint():
     """
     try:
         data   = request.get_json(force=True, silent=True) or {}
-        picks  = data.get('picks', [])
-        date_str = data.get('date', '').strip()
-        force  = bool(data.get('force', False))
+        picks        = data.get('picks', [])
+        date_str     = data.get('date', '').strip()
+        force        = bool(data.get('force', False))
+        ai_background = bool(data.get('ai_background', False))
 
         if not isinstance(picks, list) or not picks:
             return jsonify({'error': 'picks array is required'}), 400
@@ -208,7 +209,7 @@ def generate_daily_results_endpoint():
 
         print(f"Generating daily results: {won}/{total} won, date={date_str!r}")
 
-        imgs = generate_daily_results(picks, date_str)
+        imgs = generate_daily_results(picks, date_str, ai_background=ai_background)
         # Support both single image (legacy) and list of images (new)
         if not isinstance(imgs, list):
             imgs = [imgs]
