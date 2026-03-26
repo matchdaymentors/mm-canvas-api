@@ -20,7 +20,9 @@ BETANO_DARK   = (180, 28, 40)
 PATREON_RED   = (255, 66, 77)
 BLACK         = (0, 0, 0)
 
-FONT_DIR = os.path.dirname(os.path.abspath(__file__))
+FONT_DIR       = os.path.dirname(os.path.abspath(__file__))
+LOGO_CACHE_DIR = os.path.join(FONT_DIR, 'logo_cache')
+os.makedirs(LOGO_CACHE_DIR, exist_ok=True)
 
 # в”Ђв”Ђ Country flag data
 FLAG_DATA = {
@@ -1092,32 +1094,45 @@ def generate_match_story(home_team, away_team, home_score, away_score,
 
 def _fetch_logo_crisp(url, display_size):
     """
-    Fetch a team logo preserving its original aspect ratio, then centre it
-    on a transparent display_size Г— display_size RGBA canvas.
-    Fetches at 3Г— display resolution then downscales with LANCZOS for crispness.
+    Fetch a team logo, cache to disk, return RGBA canvas of display_size x display_size.
+    Cached logos load instantly on future calls.
     """
+    import hashlib, urllib.parse
     try:
-        resp = requests.get(url, timeout=10, headers={'User-Agent': 'Mozilla/5.0'})
-        if resp.status_code != 200:
-            return None
-        raw = Image.open(BytesIO(resp.content)).convert("RGBA")
+        url_hash   = hashlib.md5(url.encode()).hexdigest()
+        parsed     = urllib.parse.urlparse(url)
+        ext        = os.path.splitext(parsed.path)[1] or '.png'
+        cache_path = os.path.join(LOGO_CACHE_DIR, f"{url_hash}{ext}")
+
+        if os.path.exists(cache_path):
+            raw_bytes = open(cache_path, 'rb').read()
+        else:
+            resp = requests.get(url, timeout=12,
+                                headers={'User-Agent': 'Mozilla/5.0'})
+            if resp.status_code != 200:
+                print(f"Logo fetch {resp.status_code}: {url}")
+                return None
+            raw_bytes = resp.content
+            with open(cache_path, 'wb') as f:
+                f.write(raw_bytes)
+            print(f"Logo cached: {url}")
+
+        raw = Image.open(BytesIO(raw_bytes)).convert("RGBA")
         w, h = raw.size
-        # Scale to fill a 3Г— virtual canvas, then fit-scale back to display_size
         fetch_px = display_size * 3
         scale    = min(fetch_px / max(w, 1), fetch_px / max(h, 1))
         nw       = max(int(w * scale), 1)
         nh       = max(int(h * scale), 1)
         big      = raw.resize((nw, nh), Image.LANCZOS)
-        # Fit into display_size Г— display_size
-        scale2 = min(display_size / nw, display_size / nh)
-        fw     = max(int(nw * scale2), 1)
-        fh     = max(int(nh * scale2), 1)
-        final  = big.resize((fw, fh), Image.LANCZOS)
-        # Centre on transparent square canvas
-        canvas = Image.new("RGBA", (display_size, display_size), (0, 0, 0, 0))
+        scale2   = min(display_size / nw, display_size / nh)
+        fw       = max(int(nw * scale2), 1)
+        fh       = max(int(nh * scale2), 1)
+        final    = big.resize((fw, fh), Image.LANCZOS)
+        canvas   = Image.new("RGBA", (display_size, display_size), (0, 0, 0, 0))
         canvas.paste(final, ((display_size - fw) // 2, (display_size - fh) // 2), final)
         return canvas
-    except Exception:
+    except Exception as e:
+        print(f"Logo error ({url}): {e}")
         return None
 
 
@@ -1262,7 +1277,7 @@ def _render_results_card(sections, date_str, total_won, total_picks, win_pct, da
     BADGE_PAD_B = 22
     HEADER_H    = LOGO_PAD_T + LOGO_H_img + SEP_H + HEADLINE_H + DATE_H + BADGE_H + BADGE_PAD_B
 
-    SEC_H       = 56    # section-header band height
+    SEC_H       = 64    # section-header band height
     ROW_GAP     = 10
     ROW_MIN     = 100
     ROW_MAX     = 124
@@ -1417,41 +1432,68 @@ def _render_results_card(sections, date_str, total_won, total_picks, win_pct, da
     cw = W - 2 * MARGIN
 
     for sec_label, sec_sub, sec_picks, sec_col in sections:
-        # Section header band
         sec_r, sec_g, sec_b = sec_col
 
+        # ── Section header band ──────────────────────────────────────────────
+        # Full-width solid section colour band (no overlapping rim lines)
         if dark:
-            # Pre-blended solid tint (dark bg + 15% section colour)
-            blend = (max(0, min(255, int(8  + sec_r * 0.15))),
-                     max(0, min(255, int(12 + sec_g * 0.15))),
-                     max(0, min(255, int(20 + sec_b * 0.15))))
+            # Dark tinted band: base dark + 22% of section colour, brighter
+            blend = (max(0, min(255, int(10 + sec_r * 0.22))),
+                     max(0, min(255, int(14 + sec_g * 0.22))),
+                     max(0, min(255, int(22 + sec_b * 0.22))))
             draw.rectangle([0, yc, W, yc + SEC_H], fill=blend)
-            draw.rectangle([0, yc, W, yc + 3], fill=sec_col)               # top rim
-            draw.rectangle([0, yc + SEC_H - 3, W, yc + SEC_H], fill=sec_col)  # bottom rim
+            # Left accent strip (full section colour, 6px)
+            draw.rectangle([0, yc, 6, yc + SEC_H], fill=sec_col)
             lbl_col  = (255, 255, 255)
-            sub_col  = (sec_r + (255 - sec_r) // 2, sec_g + (255 - sec_g) // 2, sec_b + (255 - sec_b) // 2)
-            cnt_col  = (220, 220, 230)
+            sub_col  = (min(255, sec_r + 80), min(255, sec_g + 80), min(255, sec_b + 80))
+            pill_bg  = tuple(max(0, int(c * 0.30)) for c in sec_col)
+            pill_rim = tuple(max(0, int(c * 0.65)) for c in sec_col)
+            pill_txt = (255, 255, 255)
         else:
+            # White bg: solid section colour band
             draw.rectangle([0, yc, W, yc + SEC_H], fill=sec_col)
+            # Subtle inner bottom highlight
+            draw.rectangle([0, yc + SEC_H - 2, W, yc + SEC_H],
+                           fill=tuple(min(255, int(c * 1.2)) for c in sec_col))
             lbl_col  = (255, 255, 255)
-            sub_col  = (220, 230, 220)
-            cnt_col  = (255, 255, 255)
+            sub_col  = (255, 255, 255)
+            pill_bg  = (255, 255, 255, 40)
+            pill_rim = (255, 255, 255)
+            pill_txt = (255, 255, 255)
 
-        f_sec_lbl = F('BB', 22)
-        f_sec_sub = F('OR', 16)
-        f_sec_cnt = F('OB', 18)
+        # Fonts
+        f_sec_lbl = F('BB', 21)
+        f_sec_sub = F('OB', 14)
 
-        # Label on left
-        draw.text((MARGIN + 6, yc + (SEC_H - 26) // 2), sec_label, font=f_sec_lbl, fill=lbl_col)
-        sub_bb = draw.textbbox((0, 0), sec_sub, font=f_sec_sub)
-        draw.text((MARGIN + 6, yc + SEC_H - 18), sec_sub, font=f_sec_sub, fill=sub_col)
+        # Vertical centre for a two-line block (label + sublabel)
+        LBL_H = 24   # approx px height of label text (BB 21)
+        SUB_H = 16   # approx px height of sublabel text (OB 14)
+        GAP   = 3
+        BLOCK = LBL_H + GAP + SUB_H
+        text_top = yc + (SEC_H - BLOCK) // 2
 
-        # Count on right
+        tx = 14   # left text x (after the accent strip)
+        draw.text((tx, text_top),              sec_label, font=f_sec_lbl, fill=lbl_col)
+        draw.text((tx, text_top + LBL_H + GAP), sec_sub,  font=f_sec_sub, fill=sub_col)
+
+        # Count pill on the right
         cnt_txt = f"{len(sec_picks)} PICKS"
-        cnt_bb  = draw.textbbox((0, 0), cnt_txt, font=f_sec_cnt)
-        draw.text((W - MARGIN - (cnt_bb[2] - cnt_bb[0]) - 6,
-                   yc + (SEC_H - (cnt_bb[3] - cnt_bb[1])) // 2),
-                  cnt_txt, font=f_sec_cnt, fill=cnt_col)
+        f_cnt   = F('BB', 15)
+        cnt_bb  = draw.textbbox((0, 0), cnt_txt, font=f_cnt)
+        cnt_w   = cnt_bb[2] - cnt_bb[0]
+        cnt_h   = cnt_bb[3] - cnt_bb[1]
+        pill_w  = cnt_w + 22
+        pill_h  = cnt_h + 10
+        pill_x  = W - MARGIN - pill_w
+        pill_y  = yc + (SEC_H - pill_h) // 2
+        if dark:
+            draw.rounded_rectangle([pill_x, pill_y, pill_x + pill_w, pill_y + pill_h],
+                                   radius=8, fill=pill_bg, outline=pill_rim, width=1)
+            draw.text((pill_x + 11, pill_y + 5), cnt_txt, font=f_cnt, fill=pill_txt)
+        else:
+            draw.rounded_rectangle([pill_x, pill_y, pill_x + pill_w, pill_y + pill_h],
+                                   radius=8, outline=(255, 255, 255), width=1)
+            draw.text((pill_x + 11, pill_y + 5), cnt_txt, font=f_cnt, fill=(255, 255, 255))
 
         yc += SEC_H
 
@@ -1464,14 +1506,19 @@ def _render_results_card(sections, date_str, total_won, total_picks, win_pct, da
             cy = yc
 
             if dark:
-                row_bg_r = max(0, sec_r // 8)
-                row_bg_g = max(0, sec_g // 8)
-                row_bg_b = max(0, sec_b // 8)
-                r_bg  = (row_bg_r + (8 if won else 12), row_bg_g + (4 if won else 2), row_bg_b + (4 if not won else 2))
-                r_rim = tuple(max(0, int(c * 0.4)) for c in win_col)
+                if won:
+                    r_bg  = (6, 22, 10)    # dark green tint
+                    r_rim = (20, 80, 38)
+                else:
+                    r_bg  = (22, 6, 8)     # dark red tint
+                    r_rim = (90, 20, 24)
             else:
-                r_bg  = (255, 255, 255)
-                r_rim = (210, 215, 225)
+                if won:
+                    r_bg  = (235, 252, 240)   # light green
+                    r_rim = (140, 210, 160)
+                else:
+                    r_bg  = (252, 235, 236)   # light red
+                    r_rim = (210, 140, 145)
 
             # Shadow
             shadow_col = (5, 8, 14) if dark else (210, 215, 225)
@@ -1686,6 +1733,11 @@ def _render_results_card(sections, date_str, total_won, total_picks, win_pct, da
         asp        = pl.width / pl.height
         pat_logo_w = int(pat_logo_h * asp)
         pl         = pl.resize((pat_logo_w, pat_logo_h), Image.LANCZOS)
+        if not dark:
+            # Invert RGB channels so white logo shows on white background
+            r, g, b_ch, a = pl.split()
+            pl = Image.merge("RGBA", (
+                ImageChops.invert(r), ImageChops.invert(g), ImageChops.invert(b_ch), a))
         img.paste(pl, (pat_pad_x, pat_mid_y - pat_logo_h // 2), pl)
         draw       = ImageDraw.Draw(img)
         div_x      = pat_pad_x + pat_logo_w + 22
