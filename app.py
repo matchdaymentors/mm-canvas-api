@@ -13,6 +13,21 @@ CLOUDINARY_CLOUD = 'dz6mwug4p'
 CLOUDINARY_PRESET = 'mm_unsigned'
 
 
+def cloudinary_transform(url, transform):
+    """Inject a Cloudinary transform string into an existing upload URL."""
+    return url.replace('/image/upload/', f'/image/upload/{transform}/')
+
+
+def make_story_url(url):
+    """Convert a feed image URL to a 1080×1920 story via Cloudinary transform."""
+    return cloudinary_transform(url, 'c_pad,w_1080,h_1920,b_rgb:0a1812')
+
+
+def make_x_url(url):
+    """Convert a feed image URL to a 1600×900 Twitter/X card via Cloudinary transform."""
+    return cloudinary_transform(url, 'c_pad,w_1600,h_900,b_rgb:0a1812')
+
+
 def upload_to_cloudinary(img):
     """Upload a PIL image to Cloudinary, return secure URL."""
     buf = io.BytesIO()
@@ -76,6 +91,7 @@ def generate():
                 url = upload_to_cloudinary(img)
                 image_urls.append(url)
             result_payload['image_urls'] = image_urls
+            result_payload['x_urls'] = [make_x_url(u) for u in image_urls]
             result_payload['count'] = len(image_urls)
 
         # ── Story images (1080×1920) ─────────────────────────────────────────
@@ -223,11 +239,19 @@ def generate_daily_results_endpoint():
         labels = ['card1', 'card2', 'card3']
         labeled = {labels[i]: urls[i] for i in range(min(len(urls), len(labels)))}
 
+        # Platform-specific variants via Cloudinary transforms (no extra upload)
+        story_urls = [make_story_url(u) for u in urls]
+        x_urls     = [make_x_url(u)     for u in urls]
+        story_labeled = {labels[i]: story_urls[i] for i in range(min(len(story_urls), len(labels)))}
+        x_labeled     = {labels[i]: x_urls[i]     for i in range(min(len(x_urls), len(labels)))}
+
         return jsonify({
             'success': True,
             'image_url': urls[0],        # backward compat
             'image_urls': urls,
             'cards': labeled,
+            'story_cards': story_labeled,   # 1080×1920 — for IG/FB Stories
+            'x_cards': x_labeled,           # 1600×900 — for X/Twitter feed
             'won': won,
             'total': total,
             'win_rate': round(pct * 100, 1)
