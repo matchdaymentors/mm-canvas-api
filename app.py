@@ -54,7 +54,7 @@ def upload_to_cloudinary(img):
     raise ValueError(f'Cloudinary error: {result}')
 
 
-APP_VERSION = '2.1.0'  # 8f7eab4 + day_name + unicode fix
+APP_VERSION = '2.2.0'  # 39217a6 + GBP->£ fix + round Patreon logo
 
 
 @app.route('/health', methods=['GET'])
