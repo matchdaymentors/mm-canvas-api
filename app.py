@@ -76,14 +76,15 @@ def generate():
 
         # format: "post" (default), "story", or "both"
         fmt = data.get('format', 'post').lower()
+        day_name = data.get('dayName', data.get('day_name', '')).strip()
 
-        print(f"Generating canvas for {len(slips)} slips, format={fmt}: {slips}")
+        print(f"Generating canvas for {len(slips)} slips, format={fmt}, day={day_name}: {slips}")
 
         result_payload = {'success': True}
 
         # ── Post images (1080×1080) ──────────────────────────────────────────
         if fmt in ('post', 'both'):
-            images = generate_images(slips)
+            images = generate_images(slips, day_name=day_name)
             print(f"Post canvas generated: {len(images)} images")
             image_urls = []
             for i, img in enumerate(images):
@@ -96,7 +97,7 @@ def generate():
 
         # ── Story images (1080×1920) ─────────────────────────────────────────
         if fmt in ('story', 'both'):
-            stories = generate_story_images(slips)
+            stories = generate_story_images(slips, day_name=day_name)
             print(f"Story canvas generated: {len(stories)} images")
             story_urls = []
             for i, img in enumerate(stories):

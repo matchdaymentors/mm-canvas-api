@@ -172,7 +172,7 @@ def draw_betano_logo(img, x, y, w=130, h=38):
         img.paste(resized, (paste_x, paste_y), resized)
 
 # в”Ђв”Ђ Canvas generator в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
-def generate_canvas(slips, image_index=0, total_images=1):
+def generate_canvas(slips, image_index=0, total_images=1, day_name=''):
     W, H = 1080, 1080
 
     bg  = make_pitch_bg(W, H)
@@ -213,17 +213,18 @@ def generate_canvas(slips, image_index=0, total_images=1):
     header_y   = sep_y + 10
     f_headline = F('BB', 52)          # much bigger вЂ” this IS the headline
     n          = len(slips)
-    hl_text    = "TODAY'S CARD"
+    card_label = f”{day_name.upper()}'S” if day_name else “TODAY'S”
+    hl_text    = f”{card_label} CARD”
     if total_images > 1:
-        hl_text = f"TODAY'S CARD  В·  PART {image_index+1}/{total_images}"
+        hl_text = f”{card_label} CARD  -  PART {image_index+1}/{total_images}”
 
     bb = draw.textbbox((0,0), hl_text, font=f_headline)
     tw = bb[2]-bb[0]
     draw.text(((W-tw)//2, header_y), hl_text, font=f_headline, fill=GOLD)
 
-    # Slip count вЂ” clear and readable
+    # Slip count
     f_slip_count = F('OB', 24)
-    sc_text = f"{n} SLIP{'S' if n>1 else ''}  В·  TODAY'S SELECTIONS"
+    sc_text = f”{n} SLIP{'S' if n>1 else ''}  -  {card_label} SELECTIONS”
     bb2 = draw.textbbox((0,0), sc_text, font=f_slip_count)
     tw2 = bb2[2]-bb2[0]
     draw.text(((W-tw2)//2, header_y+58), sc_text, font=f_slip_count, fill=GREY)
@@ -445,7 +446,7 @@ def generate_canvas(slips, image_index=0, total_images=1):
     mid_y3 = patreon_y + PATREON_H//2
 
     # Line 1 вЂ” big bold hook
-    draw.text((tx, mid_y3-34), "Full Slips + Bankroll & Risk Management + Masterclass вЂ” only ВЈ10/month",
+    draw.text((tx, mid_y3-34), “Full Slips + Bankroll & Risk Management + Masterclass - only GBP10/month”,
               font=F('BB', 24), fill=WHITE)
     # Line 2 вЂ” social proof + link
     draw.text((tx, mid_y3+2), "Join 500+ smart bettors on Patreon",
@@ -460,13 +461,13 @@ def generate_canvas(slips, image_index=0, total_images=1):
     return img
 
 
-def generate_images(slips_data):
+def generate_images(slips_data, day_name=''):
     # Always generate a single image with all slips
-    return [generate_canvas(slips_data, 0, 1)]
+    return [generate_canvas(slips_data, 0, 1, day_name=day_name)]
 
 
 # в”Ђв”Ђ Story generator (1080Г—1920 вЂ” Instagram & Facebook Stories) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
-def generate_story(slips, image_index=0, total_images=1):
+def generate_story(slips, image_index=0, total_images=1, day_name=''):
     """Generate 1080x1920 story format for Instagram/Facebook Stories."""
     W, H = 1080, 1920
 
@@ -508,14 +509,15 @@ def generate_story(slips, image_index=0, total_images=1):
     header_y   = sep_y + 18
     f_headline = F('BB', 68)
     n          = len(slips)
-    hl_text    = "TODAY'S CARD"
+    card_label = f"{day_name.upper()}'S" if day_name else "TODAY'S"
+    hl_text    = f"{card_label} CARD"
     if total_images > 1:
-        hl_text = f"TODAY'S CARD  В·  {image_index+1}/{total_images}"
+        hl_text = f"{card_label} CARD  -  {image_index+1}/{total_images}"
     bb = draw.textbbox((0, 0), hl_text, font=f_headline)
     draw.text(((W-(bb[2]-bb[0]))//2, header_y), hl_text, font=f_headline, fill=GOLD)
 
     f_count = F('OB', 28)
-    sc_text = f"{n} SLIP{'S' if n > 1 else ''}  В·  TODAY'S SELECTIONS"
+    sc_text = f"{n} SLIP{'S' if n > 1 else ''}  -  {card_label} SELECTIONS"
     bb2 = draw.textbbox((0, 0), sc_text, font=f_count)
     draw.text(((W-(bb2[2]-bb2[0]))//2, header_y+80), sc_text, font=f_count, fill=GREY)
 
@@ -673,7 +675,7 @@ def generate_story(slips, image_index=0, total_images=1):
     draw.text(((W-(url_bb[2]-url_bb[0]))//2, btn_y+btn_h+14), url_text, font=F('OR',22), fill=GREY)
 
     # Social proof line
-    mem_text = "Join 500+ smart bettors  В·  Only ВЈ10/month"
+    mem_text = "Join 500+ smart bettors  -  Only GBP10/month"
     mem_bb   = draw.textbbox((0,0), mem_text, font=F('OB',24))
     draw.text(((W-(mem_bb[2]-mem_bb[0]))//2, btn_y+btn_h+46), mem_text, font=F('OB',24), fill=GOLD)
 
@@ -683,9 +685,9 @@ def generate_story(slips, image_index=0, total_images=1):
     return img
 
 
-def generate_story_images(slips_data):
+def generate_story_images(slips_data, day_name=''):
     """Generate story format (1080x1920) for all slips in one image."""
-    return [generate_story(slips_data, 0, 1)]
+    return [generate_story(slips_data, 0, 1, day_name=day_name)]
 
 
 
@@ -1725,7 +1727,7 @@ def _render_results_card(sections, date_str, total_won, total_picks, win_pct, da
     pat_mid_y     = pat_y + PAT_H // 2
 
     line1 = "Full Slips + Bankroll & Risk Mgmt + Masterclass"
-    line2 = "Join 500+ smart bettors  -  only ВЈ10/month"
+    line2 = "Join 500+ smart bettors  -  only GBP10/month"
     line3 = "patreon.com/Matchdaymentors"
 
     if os.path.exists(pat_logo_path):
