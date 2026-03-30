@@ -54,9 +54,17 @@ def upload_to_cloudinary(img):
     raise ValueError(f'Cloudinary error: {result}')
 
 
+APP_VERSION = '2.1.0'  # 8f7eab4 + day_name + unicode fix
+
+
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({'status': 'ok'})
+    return jsonify({'status': 'ok', 'version': APP_VERSION})
+
+
+@app.route('/version', methods=['GET'])
+def version():
+    return jsonify({'version': APP_VERSION})
 
 
 @app.route('/generate', methods=['POST'])
