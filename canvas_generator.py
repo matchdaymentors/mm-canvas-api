@@ -423,18 +423,33 @@ def generate_canvas(slips, image_index=0, total_images=1, day_name=''):
     # Gold top separator
     draw.rectangle([0, patreon_y, W, patreon_y+3], fill=GOLD)
 
-    # Patreon symbol logo вЂ" large and prominent
+    # Patreon symbol logo \u2014 round disc with logo inside
     pat_logo_path = os.path.join(FONT_DIR, 'patreon_logo.png')
     pat_logo_h = 80
     pat_pad = 30
     pat_y2 = patreon_y + (PATREON_H - pat_logo_h) // 2
-    pat_logo_w_actual = pat_pad  # fallback
+    pat_logo_w_actual = pat_logo_h  # circle = square
     if os.path.exists(pat_logo_path):
+        disc_size = pat_logo_h
+        disc = Image.new("RGBA", (disc_size, disc_size), (0, 0, 0, 0))
+        disc_draw = ImageDraw.Draw(disc)
+        disc_draw.ellipse([0, 0, disc_size - 1, disc_size - 1], fill=WHITE)
         pat_logo = Image.open(pat_logo_path).convert("RGBA")
-        aspect = pat_logo.width / pat_logo.height
-        pat_logo_w_actual = int(pat_logo_h * aspect)
-        pat_logo_resized = pat_logo.resize((pat_logo_w_actual, pat_logo_h), Image.LANCZOS)
-        img.paste(pat_logo_resized, (pat_pad, pat_y2), pat_logo_resized)
+        inner_h = int(disc_size * 0.6)
+        inner_w = int(inner_h * pat_logo.width / pat_logo.height)
+        pat_logo_small = pat_logo.resize((inner_w, inner_h), Image.LANCZOS)
+        # Tint logo to dark green
+        r, g, b, a = pat_logo_small.split()
+        tinted = Image.merge("RGBA", (
+            r.point(lambda x: 20),
+            g.point(lambda x: 60),
+            b.point(lambda x: 35),
+            a
+        ))
+        px = (disc_size - inner_w) // 2
+        py = (disc_size - inner_h) // 2
+        disc.paste(tinted, (px, py), tinted)
+        img.paste(disc, (pat_pad, pat_y2), disc)
         draw = ImageDraw.Draw(img)
 
     # Vertical gold divider after logo
@@ -446,7 +461,7 @@ def generate_canvas(slips, image_index=0, total_images=1, day_name=''):
     mid_y3 = patreon_y + PATREON_H//2
 
     # Line 1 вЂ" big bold hook
-    draw.text((tx, mid_y3-34), "Full Slips + Bankroll & Risk Management + Masterclass - only GBP10/month",
+    draw.text((tx, mid_y3-34), "Full Slips + Bankroll & Risk Management + Masterclass \u2014 only \u00a310/month",
               font=F('BB', 24), fill=WHITE)
     # Line 2 вЂ" social proof + link
     draw.text((tx, mid_y3+2), "Join 500+ smart bettors on Patreon",
@@ -675,7 +690,7 @@ def generate_story(slips, image_index=0, total_images=1, day_name=''):
     draw.text(((W-(url_bb[2]-url_bb[0]))//2, btn_y+btn_h+14), url_text, font=F('OR',22), fill=GREY)
 
     # Social proof line
-    mem_text = "Join 500+ smart bettors  -  Only GBP10/month"
+    mem_text = "Join 500+ smart bettors  \u2014  Only \u00a310/month"
     mem_bb   = draw.textbbox((0,0), mem_text, font=F('OB',24))
     draw.text(((W-(mem_bb[2]-mem_bb[0]))//2, btn_y+btn_h+46), mem_text, font=F('OB',24), fill=GOLD)
 
@@ -1727,20 +1742,37 @@ def _render_results_card(sections, date_str, total_won, total_picks, win_pct, da
     pat_mid_y     = pat_y + PAT_H // 2
 
     line1 = "Full Slips + Bankroll & Risk Mgmt + Masterclass"
-    line2 = "Join 500+ smart bettors  -  only GBP10/month"
+    line2 = "Join 500+ smart bettors  \u2014  only \u00a310/month"
     line3 = "patreon.com/Matchdaymentors"
 
     if os.path.exists(pat_logo_path):
         pl         = Image.open(pat_logo_path).convert("RGBA")
         asp        = pl.width / pl.height
-        pat_logo_w = int(pat_logo_h * asp)
-        pl         = pl.resize((pat_logo_w, pat_logo_h), Image.LANCZOS)
-        if not dark:
-            # Invert RGB channels so white logo shows on white background
-            r, g, b_ch, a = pl.split()
-            pl = Image.merge("RGBA", (
-                ImageChops.invert(r), ImageChops.invert(g), ImageChops.invert(b_ch), a))
-        img.paste(pl, (pat_pad_x, pat_mid_y - pat_logo_h // 2), pl)
+        pat_logo_w = pat_logo_h  # circle = square
+        # Create round disc with logo inside
+        disc_size = pat_logo_h
+        disc = Image.new("RGBA", (disc_size, disc_size), (0, 0, 0, 0))
+        disc_draw = ImageDraw.Draw(disc)
+        if dark:
+            disc_draw.ellipse([0, 0, disc_size - 1, disc_size - 1], fill=WHITE)
+            tint_color = (20, 60, 35)
+        else:
+            disc_draw.ellipse([0, 0, disc_size - 1, disc_size - 1], fill=(20, 60, 35))
+            tint_color = WHITE
+        inner_h = int(disc_size * 0.6)
+        inner_w = int(inner_h * pl.width / pl.height)
+        pl_small = pl.resize((inner_w, inner_h), Image.LANCZOS)
+        r_ch, g_ch, b_ch, a_ch = pl_small.split()
+        tinted = Image.merge("RGBA", (
+            r_ch.point(lambda x: tint_color[0]),
+            g_ch.point(lambda x: tint_color[1]),
+            b_ch.point(lambda x: tint_color[2]),
+            a_ch
+        ))
+        px_off = (disc_size - inner_w) // 2
+        py_off = (disc_size - inner_h) // 2
+        disc.paste(tinted, (px_off, py_off), tinted)
+        img.paste(disc, (pat_pad_x, pat_mid_y - pat_logo_h // 2), disc)
         draw       = ImageDraw.Draw(img)
         div_x      = pat_pad_x + pat_logo_w + 22
         draw.rectangle([div_x, pat_y + 16, div_x + 2, H - BOTBAR_H - 14], fill=GOLD_DIM)
