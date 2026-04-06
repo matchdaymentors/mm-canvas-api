@@ -5,7 +5,7 @@ import json
 import os
 import requests
 import traceback
-from canvas_generator import generate_images, generate_story_images, generate_custom_card, generate_custom_story, generate_match_card, generate_match_story, generate_daily_results
+from canvas_generator import generate_images, generate_story_images, generate_custom_card, generate_custom_story, generate_match_card, generate_match_story, generate_daily_results, generate_compact_results
 
 app = Flask(__name__)
 
@@ -54,7 +54,7 @@ def upload_to_cloudinary(img):
     raise ValueError(f'Cloudinary error: {result}')
 
 
-APP_VERSION = '2.2.0'  # 39217a6 + GBP->£ fix + round Patreon logo
+APP_VERSION = '2.3.0'  # compact results card endpoint added
 
 
 @app.route('/health', methods=['GET'])
@@ -345,6 +345,68 @@ def generate_social_image():
     except Exception as e:
         error_msg = traceback.format_exc()
         print(f"ERROR in /generate/social-image: {error_msg}")
+        return jsonify({'error': str(e), 'traceback': error_msg}), 500
+
+
+@app.route('/generate/compact-results', methods=['POST'])
+def generate_compact_results_endpoint():
+    """
+    Generate a single compact dark-theme results card with all picks across all tiers.
+    CL-style layout: all 15-20 games on one card, three tier sections.
+
+    Required body:
+      picks  – list of pick objects:
+               { home_team, away_team, home_score, away_score,
+                 home_logo_url?, away_logo_url?,
+                 market, pick, odds, won }
+    Optional:
+      date   – display date string, e.g. "24 MAR 2026"
+      force  – if true, skip the >=50% win-rate check (default false)
+    """
+    try:
+        data     = request.get_json(force=True, silent=True) or {}
+        picks    = data.get('picks', [])
+        date_str = data.get('date', '').strip()
+        force    = bool(data.get('force', False))
+
+        if not isinstance(picks, list) or not picks:
+            return jsonify({'error': 'picks array is required'}), 400
+
+        total = len(picks)
+        won   = sum(1 for p in picks if p.get('won', False))
+        pct   = won / total if total else 0
+
+        if not force and pct < 0.5:
+            return jsonify({
+                'success': False,
+                'skipped': True,
+                'reason': f'Win rate {won}/{total} ({int(pct*100)}%) is below 50% threshold',
+                'won': won,
+                'total': total
+            }), 200
+
+        print(f"Generating compact results: {won}/{total} won, date={date_str!r}, picks={total}")
+
+        img = generate_compact_results(picks, date_str)
+        if img is None:
+            return jsonify({'error': 'No picks provided'}), 400
+
+        print("Uploading compact results card to Cloudinary...")
+        url = upload_to_cloudinary(img)
+
+        return jsonify({
+            'success': True,
+            'image_url': url,
+            'story_url': make_story_url(url),
+            'x_url': make_x_url(url),
+            'won': won,
+            'total': total,
+            'win_rate': round(pct * 100, 1)
+        })
+
+    except Exception as e:
+        error_msg = traceback.format_exc()
+        print(f"ERROR in /generate/compact-results: {error_msg}")
         return jsonify({'error': str(e), 'traceback': error_msg}), 500
 
 
