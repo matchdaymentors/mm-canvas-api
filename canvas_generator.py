@@ -2214,11 +2214,51 @@ def generate_daily_results(picks, date_str='', ai_background=False):
 
 # ── Compact All-in-One Results Card ─────────────────────────────────────────────
 
-def generate_compact_results(picks, date_str=''):
+def _gemini_background(W, H, api_key):
+    """
+    Call Gemini image generation to produce a premium dark-green football background.
+    Returns a PIL RGB Image sized (W, H), or None on failure.
+    """
+    try:
+        import json as _json
+        prompt = (
+            f"Create a premium football results card background image, exactly {W}x{H} pixels. "
+            "Deep dark forest green base color (#0a1812). Very subtle warm golden bokeh light "
+            "circles scattered throughout. Slight radial vignette darkening the edges. "
+            "Optional: faint diagonal thin gold lines like stadium light rays at 5% opacity. "
+            "NO text, NO logos, NO player illustrations, NO UI elements whatsoever. "
+            "Pure atmospheric dark-green background only. Cinematic, luxury sports feel."
+        )
+        resp = requests.post(
+            f'https://generativelanguage.googleapis.com/v1beta/models/'
+            f'gemini-2.0-flash-preview-image-generation:generateContent?key={api_key}',
+            json={
+                'contents': [{'parts': [{'text': prompt}]}],
+                'generationConfig': {'responseModalities': ['IMAGE', 'TEXT']}
+            },
+            timeout=90
+        )
+        if resp.status_code != 200:
+            print(f"Gemini bg failed {resp.status_code}: {resp.text[:200]}")
+            return None
+        parts = resp.json().get('candidates', [{}])[0].get('content', {}).get('parts', [])
+        for part in parts:
+            if 'inlineData' in part:
+                raw = base64.b64decode(part['inlineData']['data'])
+                bg  = Image.open(BytesIO(raw)).convert('RGB')
+                bg  = bg.resize((W, H), Image.LANCZOS)
+                return bg
+    except Exception as e:
+        print(f"Gemini background error: {e}")
+    return None
+
+
+def generate_compact_results(picks, date_str='', gemini_api_key=''):
     """
     Generate ONE compact dark-theme results card with all picks across all tiers.
-    CL-style layout: small team logos, score center, odds info on second line.
+    CL-style layout: bigger team logos + names, score center, odds info on second line.
     Three tier sections on a single card (all picks visible at once).
+    If gemini_api_key is provided, uses Gemini to generate a premium background.
     """
     if not picks:
         return None
@@ -2238,45 +2278,45 @@ def generate_compact_results(picks, date_str=''):
     total = len(picks)
     won   = sum(1 for p in picks if p.get('won', False))
 
-    # ── Layout constants ───────────────────────────────────────────────────────
+    # ── Layout constants (bigger everything) ──────────────────────────────────
     W          = 1080
-    TOP_PAD    = 30
-    TOPBAR_H   = 5
-    LOGO_H     = 52
-    LOGO_GAP   = 12
-    TITLE_SZ   = 36
-    TITLE_GAP  = 6
-    DATE_SZ    = 22
-    DATE_GAP   = 12
-    SEP_GAP    = 14
-    PILL_H     = 38
-    PILL_GAP   = 10
-    ROW_H      = 68
-    ROW_GAP    = 3
-    TIER_GAP   = 16
-    SUM_GAP    = 18
-    SUMMARY_H  = 46
-    CTA_GAP    = 12
-    CTA_H      = 52
-    BOT_PAD    = 26
-    LS         = 30      # team logo circle size
-    SCORE_W    = 70
-    SCORE_H    = 26
-    ROW_MX     = 14
+    TOP_PAD    = 32
+    TOPBAR_H   = 6
+    LOGO_H     = 60
+    LOGO_GAP   = 14
+    TITLE_SZ   = 42
+    TITLE_GAP  = 8
+    DATE_SZ    = 24
+    DATE_GAP   = 14
+    SEP_GAP    = 16
+    PILL_H     = 44
+    PILL_GAP   = 12
+    ROW_H      = 86      # bigger rows
+    ROW_GAP    = 4
+    TIER_GAP   = 20
+    SUM_GAP    = 20
+    SUMMARY_H  = 52
+    CTA_GAP    = 14
+    CTA_H      = 56
+    BOT_PAD    = 28
+    LS         = 44      # team logo circle — bigger
+    SCORE_W    = 84
+    SCORE_H    = 32
+    ROW_MX     = 12
 
-    # ── Measure title / date heights ───────────────────────────────────────────
+    # ── Measure title / date ───────────────────────────────────────────────────
     _tmp = Image.new("RGB", (1, 1))
     _dd  = ImageDraw.Draw(_tmp)
     fnt_title_m = F('BB', TITLE_SZ)
-    _bb = _dd.textbbox((0, 0), "DAILY RESULTS", font=fnt_title_m)
+    _bb  = _dd.textbbox((0, 0), "DAILY RESULTS", font=fnt_title_m)
     title_h = _bb[3] - _bb[1]
-    fnt_date_m  = F('OR', DATE_SZ)
+    fnt_date_m = F('OR', DATE_SZ)
     date_h = 0
     if date_str:
-        _bb = _dd.textbbox((0, 0), date_str, font=fnt_date_m)
+        _bb    = _dd.textbbox((0, 0), date_str, font=fnt_date_m)
         date_h = _bb[3] - _bb[1]
 
-    # ── Calculate total canvas height ──────────────────────────────────────────
+    # ── Calculate canvas height ────────────────────────────────────────────────
     rows_total_h = 0
     for i, (t_picks, _) in enumerate(tiers):
         n = len(t_picks)
@@ -2285,39 +2325,50 @@ def generate_compact_results(picks, date_str=''):
         if i < len(tiers) - 1:
             rows_total_h += TIER_GAP
 
-    H = (TOP_PAD + TOPBAR_H + 8
+    H = (TOP_PAD + TOPBAR_H + 10
          + LOGO_H + LOGO_GAP
          + title_h + TITLE_GAP
-         + (date_h + DATE_GAP if date_str else 8)
+         + (date_h + DATE_GAP if date_str else 10)
          + 1 + SEP_GAP
          + rows_total_h
          + SUM_GAP + SUMMARY_H
          + CTA_GAP + CTA_H
          + BOT_PAD)
 
-    # ── Draw background gradient ───────────────────────────────────────────────
-    img  = make_pitch_bg(W, H)
+    # ── Background: Gemini (premium) or gradient (fast fallback) ──────────────
+    if gemini_api_key:
+        print(f"Calling Gemini for compact-results background ({W}x{H})...")
+        bg_img = _gemini_background(W, H, gemini_api_key)
+        if bg_img:
+            img = bg_img.convert("RGB")
+            print("Gemini background applied.")
+        else:
+            print("Gemini bg failed, using gradient fallback.")
+            img = make_pitch_bg(W, H)
+    else:
+        img = make_pitch_bg(W, H)
+
     draw = ImageDraw.Draw(img)
 
-    # ── Ghost "RESULTS" text rotated vertically on left edge (decorative) ─────
+    # ── Ghost "RESULTS" rotated text (left edge, decorative) ──────────────────
     try:
-        fnt_ghost  = F('BB', 90)
-        ghost_tmp  = Image.new("RGBA", (H, 110), (0, 0, 0, 0))
+        fnt_ghost  = F('BB', 100)
+        ghost_tmp  = Image.new("RGBA", (H, 120), (0, 0, 0, 0))
         ghost_draw = ImageDraw.Draw(ghost_tmp)
         g_bb = ghost_draw.textbbox((0, 0), "RESULTS", font=fnt_ghost)
-        ghost_draw.text(((H - (g_bb[2] - g_bb[0])) // 2, 8),
+        ghost_draw.text(((H - (g_bb[2] - g_bb[0])) // 2, 10),
                         "RESULTS", font=fnt_ghost,
-                        fill=(GOLD[0], GOLD[1], GOLD[2], 20))
+                        fill=(GOLD[0], GOLD[1], GOLD[2], 18))
         ghost_rot = ghost_tmp.rotate(90, expand=True)
-        img.paste(ghost_rot, (-8, (H - ghost_rot.height) // 2), ghost_rot)
+        img.paste(ghost_rot, (-10, (H - ghost_rot.height) // 2), ghost_rot)
     except Exception:
         pass
 
     # ── Gold top accent bar ────────────────────────────────────────────────────
     draw.rectangle([0, TOP_PAD, W, TOP_PAD + TOPBAR_H], fill=GOLD)
-    y = TOP_PAD + TOPBAR_H + 8
+    y = TOP_PAD + TOPBAR_H + 10
 
-    # ── MM Brand logo (white version for dark bg) ─────────────────────────────
+    # ── MM brand logo (white version) ─────────────────────────────────────────
     logo_path = os.path.join(FONT_DIR, 'logo_white.png')
     if os.path.exists(logo_path):
         lsrc = Image.open(logo_path).convert("RGBA")
@@ -2326,7 +2377,7 @@ def generate_compact_results(picks, date_str=''):
         img.paste(lsrc, ((W - lw) // 2, y), lsrc)
     y += LOGO_H + LOGO_GAP
 
-    # ── "DAILY RESULTS" title ──────────────────────────────────────────────────
+    # ── Title ──────────────────────────────────────────────────────────────────
     fnt_title = F('BB', TITLE_SZ)
     bb = draw.textbbox((0, 0), "DAILY RESULTS", font=fnt_title)
     draw.text(((W - (bb[2] - bb[0])) // 2, y),
@@ -2341,44 +2392,42 @@ def generate_compact_results(picks, date_str=''):
                   date_str, font=fnt_date, fill=GREY_LABEL)
         y += date_h + DATE_GAP
     else:
-        y += 8
+        y += 10
 
-    # ── Gold separator line ────────────────────────────────────────────────────
+    # ── Gold separator ─────────────────────────────────────────────────────────
     draw.line([(40, y), (W - 40, y)], fill=GOLD_DIM, width=1)
     y += 1 + SEP_GAP
 
-    # ── Fonts shared across rows ───────────────────────────────────────────────
-    fnt_team  = F('OB', 19)
-    fnt_score = F('BB', 17)
-    fnt_odds  = F('OR', 16)
-    fnt_pill  = F('BB', 17)
+    # ── Row-level fonts ────────────────────────────────────────────────────────
+    fnt_team  = F('OB', 23)      # bigger team names
+    fnt_score = F('BB', 21)      # bigger score
+    fnt_odds  = F('OR', 18)      # bigger odds line
+    fnt_pill  = F('BB', 19)      # bigger tier pill text
 
     CENTER      = W // 2
-    SCORE_BG    = (8, 28, 14)
-    WON_ROW_BG  = (16, 55, 24)
-    LOST_ROW_BG = (52, 14, 14)
-    TIER_PILL   = (20, 65, 32)
-    GREEN_TXT   = (80, 210, 110)
-    RED_TXT     = (230, 85, 85)
+    SCORE_BG    = (6, 24, 12)
+    WON_ROW_BG  = (14, 52, 22)
+    LOST_ROW_BG = (50, 12, 12)
+    TIER_PILL   = (18, 62, 30)
+    GREEN_TXT   = (85, 215, 115)
+    RED_TXT     = (235, 80, 80)
 
     # ── Tier sections ──────────────────────────────────────────────────────────
     for t_idx, (t_picks, t_label) in enumerate(tiers):
         t_won = sum(1 for p in t_picks if p.get('won', False))
         t_tot = len(t_picks)
 
-        # Tier header pill
+        # Tier pill header
         pill_txt = f"{t_label}  \u2022  {t_won}/{t_tot} GREEN"
-        _bb = draw.textbbox((0, 0), pill_txt, font=fnt_pill)
-        pill_tw = _bb[2] - _bb[0]
-        pill_w  = pill_tw + 48
-        pill_x  = (W - pill_w) // 2
+        _bb  = draw.textbbox((0, 0), pill_txt, font=fnt_pill)
+        pill_w = (_bb[2] - _bb[0]) + 52
+        pill_x = (W - pill_w) // 2
         draw.rounded_rectangle([pill_x, y, pill_x + pill_w, y + PILL_H],
                                 radius=PILL_H // 2, fill=TIER_PILL)
-        draw.text((pill_x + 24, y + (PILL_H - (_bb[3] - _bb[1])) // 2),
+        draw.text((pill_x + 26, y + (PILL_H - (_bb[3] - _bb[1])) // 2),
                   pill_txt, font=fnt_pill, fill=GOLD)
         y += PILL_H + PILL_GAP
 
-        # Match rows
         for r_idx, pick in enumerate(t_picks):
             home      = pick.get('home_team', '')
             away      = pick.get('away_team', '')
@@ -2396,10 +2445,10 @@ def generate_compact_results(picks, date_str=''):
             draw.rectangle([ROW_MX, row_y, W - ROW_MX, row_y2],
                             fill=WON_ROW_BG if is_won else LOST_ROW_BG)
 
-            # Line 1 centre-y (logos and score)
-            L1_CY = row_y + 6 + LS // 2
+            # Line 1 vertical centre (logos + score)
+            L1_CY = row_y + 8 + LS // 2
 
-            # Score pill (centered)
+            # Score pill
             score_str = (f"{h_score} - {a_score}"
                          if (str(h_score) != '' and str(a_score) != '') else '- - -')
             sp_x = CENTER - SCORE_W // 2
@@ -2411,33 +2460,33 @@ def generate_compact_results(picks, date_str=''):
                        sp_y + (SCORE_H - (bb[3] - bb[1])) // 2),
                       score_str, font=fnt_score, fill=WHITE)
 
-            # Home logo + name (left side)
+            # Home logo + name
             h_logo = _fetch_team_logo(h_url, LS, home)
-            lx     = ROW_MX + 8
+            lx     = ROW_MX + 10
             logo_y = L1_CY - LS // 2
             img.paste(h_logo, (lx, logo_y), h_logo)
 
-            name_x  = lx + LS + 6
-            max_hw  = sp_x - name_x - 6
+            name_x  = lx + LS + 8
+            max_hw  = sp_x - name_x - 8
             h_short = _fit_text(home, fnt_team, max_hw, draw)
             bb = draw.textbbox((0, 0), h_short, font=fnt_team)
             draw.text((name_x, L1_CY - (bb[3] - bb[1]) // 2),
                       h_short, font=fnt_team, fill=WHITE)
 
-            # Away logo + name (right side)
+            # Away logo + name
             a_logo  = _fetch_team_logo(a_url, LS, away)
-            logo_rx = W - ROW_MX - 8 - LS
+            logo_rx = W - ROW_MX - 10 - LS
             img.paste(a_logo, (logo_rx, logo_y), a_logo)
 
-            away_start = sp_x + SCORE_W + 6
-            away_end   = logo_rx - 6
+            away_start = sp_x + SCORE_W + 8
+            away_end   = logo_rx - 8
             max_aw     = away_end - away_start
             a_short    = _fit_text(away, fnt_team, max_aw, draw)
             bb = draw.textbbox((0, 0), a_short, font=fnt_team)
             draw.text((away_start, L1_CY - (bb[3] - bb[1]) // 2),
                       a_short, font=fnt_team, fill=WHITE)
 
-            # Line 2: bet info (centered below teams)
+            # Line 2: odds info
             tick     = '\u2713' if is_won else '\u2717'
             clr      = GREEN_TXT if is_won else RED_TXT
             odds_str = f"@{odds_val}" if odds_val else ''
@@ -2447,15 +2496,15 @@ def generate_compact_results(picks, date_str=''):
                 mid_txt = (mid_txt + '  ' + odds_str) if mid_txt else odds_str
             info_txt = f"{tick}  {mid_txt}" if mid_txt else tick
 
-            L2_Y = row_y + 6 + LS + 4
-            bb = draw.textbbox((0, 0), info_txt, font=fnt_odds)
+            L2_Y = row_y + 8 + LS + 6
+            bb   = draw.textbbox((0, 0), info_txt, font=fnt_odds)
             draw.text(((W - (bb[2] - bb[0])) // 2, L2_Y),
                       info_txt, font=fnt_odds, fill=clr)
 
             y += ROW_H
             if r_idx < len(t_picks) - 1:
                 draw.line([(ROW_MX, y), (W - ROW_MX, y)],
-                          fill=(30, 72, 40), width=1)
+                          fill=(28, 68, 38), width=1)
                 y += ROW_GAP
 
         if t_idx < len(tiers) - 1:
@@ -2463,8 +2512,8 @@ def generate_compact_results(picks, date_str=''):
 
     # ── Summary bar ────────────────────────────────────────────────────────────
     y += SUM_GAP
-    draw.rectangle([0, y, W, y + SUMMARY_H], fill=(12, 42, 20))
-    fnt_sum = F('BB', 26)
+    draw.rectangle([0, y, W, y + SUMMARY_H], fill=(10, 38, 18))
+    fnt_sum = F('BB', 28)
     sum_txt = f"{won} / {total} GREEN TODAY"
     bb = draw.textbbox((0, 0), sum_txt, font=fnt_sum)
     draw.text(((W - (bb[2] - bb[0])) // 2,
@@ -2473,9 +2522,9 @@ def generate_compact_results(picks, date_str=''):
     y += SUMMARY_H + CTA_GAP
 
     # ── Patreon CTA ────────────────────────────────────────────────────────────
-    CTA_MX  = 40
-    cw      = W - CTA_MX * 2
-    DK_CTA  = (12, 42, 20)
+    CTA_MX = 40
+    cw     = W - CTA_MX * 2
+    DK_CTA = (10, 38, 18)
     draw.rounded_rectangle([CTA_MX, y, CTA_MX + cw, y + CTA_H],
                             radius=CTA_H // 2, fill=DK_CTA)
 
@@ -2495,7 +2544,7 @@ def generate_compact_results(picks, date_str=''):
         except Exception:
             pass
 
-    fnt_cta = F('BB', 24)
+    fnt_cta = F('BB', 26)
     cta_txt = "JOIN MEMBERSHIP  \u00a310/MONTH"
     bb = draw.textbbox((0, 0), cta_txt, font=fnt_cta)
     draw.text(((W - (bb[2] - bb[0])) // 2,
@@ -2504,7 +2553,7 @@ def generate_compact_results(picks, date_str=''):
     y += CTA_H
 
     # Gold bottom bar
-    draw.rectangle([0, y + 8, W, y + 13], fill=GOLD)
+    draw.rectangle([0, y + 8, W, y + 14], fill=GOLD)
 
     return img
 

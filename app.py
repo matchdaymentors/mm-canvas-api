@@ -54,7 +54,7 @@ def upload_to_cloudinary(img):
     raise ValueError(f'Cloudinary error: {result}')
 
 
-APP_VERSION = '2.3.0'  # compact results card endpoint added
+APP_VERSION = '2.4.0'  # compact results: bigger sizes + Gemini bg
 
 
 @app.route('/health', methods=['GET'])
@@ -385,9 +385,10 @@ def generate_compact_results_endpoint():
                 'total': total
             }), 200
 
-        print(f"Generating compact results: {won}/{total} won, date={date_str!r}, picks={total}")
+        gemini_key = os.environ.get('GEMINI_API_KEY', '')
+        print(f"Generating compact results: {won}/{total} won, date={date_str!r}, picks={total}, gemini={'yes' if gemini_key else 'no'}")
 
-        img = generate_compact_results(picks, date_str)
+        img = generate_compact_results(picks, date_str, gemini_api_key=gemini_key)
         if img is None:
             return jsonify({'error': 'No picks provided'}), 400
 
