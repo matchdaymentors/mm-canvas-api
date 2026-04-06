@@ -2231,7 +2231,7 @@ def _gemini_background(W, H, api_key):
         )
         resp = requests.post(
             f'https://generativelanguage.googleapis.com/v1beta/models/'
-            f'gemini-2.0-flash-preview-image-generation:generateContent?key={api_key}',
+            f'gemini-2.5-flash-image:generateContent?key={api_key}',
             json={
                 'contents': [{'parts': [{'text': prompt}]}],
                 'generationConfig': {'responseModalities': ['IMAGE', 'TEXT']}
@@ -2489,7 +2489,11 @@ def generate_compact_results(picks, date_str='', gemini_api_key=''):
             # Line 2: odds info
             tick     = '\u2713' if is_won else '\u2717'
             clr      = GREEN_TXT if is_won else RED_TXT
-            odds_str = f"@{odds_val}" if odds_val else ''
+            try:
+                _o = float(odds_val)
+                odds_str = f"@{_o:.2f}" if _o > 0 else ''
+            except (TypeError, ValueError):
+                odds_str = ''
             parts    = [p for p in [market, selection] if p]
             mid_txt  = '  \u2022  '.join(parts)
             if odds_str:
