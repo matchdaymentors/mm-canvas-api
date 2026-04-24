@@ -3,11 +3,22 @@ import base64
 import io
 import json
 import os
+import threading
 import requests
 import traceback
 from canvas_generator import generate_images, generate_story_images, generate_custom_card, generate_custom_story, generate_match_card, generate_match_story, generate_daily_results, generate_compact_results
 
 app = Flask(__name__)
+
+# Apps Script Web App URL (mm_automation.gs handles telegram + capi actions).
+# Telegram cannot hit Apps Script directly because Apps Script responds with 302
+# redirects to script.googleusercontent.com (with rotating user_content_key that
+# Telegram won't follow). This Flask app proxies POST -> Apps Script and returns
+# 200 to Telegram immediately.
+APPS_SCRIPT_URL = os.environ.get(
+    'APPS_SCRIPT_URL',
+    'https://script.google.com/macros/s/AKfycbwXyDTyO3mqOJNisnZe_cnWJ4C5Mg3MxdWEo64V9MY_Kgc3WtndUxw0FecGfuE0H74kKA/exec'
+)
 
 CLOUDINARY_CLOUD = 'dz6mwug4p'
 CLOUDINARY_PRESET = 'mm_unsigned'
@@ -60,6 +71,49 @@ APP_VERSION = '2.4.0'  # compact results: bigger sizes + Gemini bg
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({'status': 'ok', 'version': APP_VERSION})
+
+
+@app.route('/telegram-proxy', methods=['POST', 'GET'])
+def telegram_proxy():
+    """Telegram -> Apps Script bridge.
+
+    Telegram POSTs an update here. We forward the JSON to Apps Script in a
+    background thread (so the long /summary Claude+Canvas chain can run for
+    20+ seconds without Telegram timing out at 10s) and return 200 immediately.
+
+    The forwarder uses requests.post with allow_redirects=True so Apps Script's
+    302 -> script.googleusercontent.com hop is followed transparently.
+    """
+    if request.method == 'GET':
+        return jsonify({'status': 'ok', 'service': 'mm_telegram_proxy', 'target': APPS_SCRIPT_URL.split('?')[0]})
+
+    payload = request.get_json(silent=True) or {}
+    secret_header = request.headers.get('X-Telegram-Bot-Api-Secret-Token', '')
+    action = request.args.get('action', 'telegram')
+
+    def _forward():
+        try:
+            url = APPS_SCRIPT_URL
+            if '?' not in url:
+                url = url + '?action=' + action
+            elif 'action=' not in url:
+                url = url + '&action=' + action
+            r = requests.post(
+                url,
+                json=payload,
+                headers={
+                    'Content-Type': 'application/json',
+                    'X-Telegram-Bot-Api-Secret-Token': secret_header,
+                },
+                timeout=120,
+                allow_redirects=True,
+            )
+            print(f'[tg-proxy] forwarded action={action} status={r.status_code} len={len(r.text or "")}')
+        except Exception as ex:
+            print(f'[tg-proxy] forward error: {ex}')
+
+    threading.Thread(target=_forward, daemon=True).start()
+    return jsonify({'ok': True}), 200
 
 
 @app.route('/version', methods=['GET'])
