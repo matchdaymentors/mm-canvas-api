@@ -22,7 +22,9 @@ APPS_SCRIPT_URL = os.environ.get(
     'https://script.google.com/macros/s/AKfycbwXyDTyO3mqOJNisnZe_cnWJ4C5Mg3MxdWEo64V9MY_Kgc3WtndUxw0FecGfuE0H74kKA/exec'
 )
 
-TG_BOT_TOKEN = os.environ.get('TG_BOT_TOKEN', '8543772848:AAEQZRZ3cUezeV-IMhNmQUksUrnbDO1kUtQ')
+# NEVER hardcode this. Set TG_BOT_TOKEN as a Render env var instead.
+# GitHub secret scanning flags any commit containing a real bot token.
+TG_BOT_TOKEN = os.environ.get('TG_BOT_TOKEN', '')
 
 # In-memory topic queue. Persists for the lifetime of the Render container
 # (stays alive 24/7 thanks to MM Render Warmer scheduled task pinging /health).
