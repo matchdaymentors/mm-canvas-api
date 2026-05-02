@@ -22,42 +22,31 @@ APPS_SCRIPT_URL = os.environ.get(
     'https://script.google.com/macros/s/AKfycbwXyDTyO3mqOJNisnZe_cnWJ4C5Mg3MxdWEo64V9MY_Kgc3WtndUxw0FecGfuE0H74kKA/exec'
 )
 
-# NEVER hardcode this. Set TG_BOT_TOKEN as a Render env var instead.
-# GitHub secret scanning flags any commit containing a real bot token.
-TG_BOT_TOKEN = os.environ.get('TG_BOT_TOKEN', '')
-
-# In-memory topic queue. Persists for the lifetime of the Render container
-# (stays alive 24/7 thanks to MM Render Warmer scheduled task pinging /health).
-# Each entry: {'id': uuid, 'cmd': 'topic'|'post'|'news', 'hint': str, 'chat_id': int, 'created_at': float}
+# In-memory command queue. PowerShell poller (queue_processor.ps1) on the PC reads
+# this every 2 min, sends Telegram confirmations + processes commands using local
+# credentials (no secrets in this repo).
+# Each entry: {'id': uuid, 'cmd': str, 'hint': str, 'chat_id': int, 'created_at': float, 'raw_text': str}
 TOPIC_QUEUE = []
 TOPIC_QUEUE_LOCK = threading.Lock()
 
 
-def tg_send(chat_id, text):
-    """Send a Telegram message via Bot API. Used for confirmations + draft previews."""
-    try:
-        requests.post(
-            f'https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage',
-            json={'chat_id': chat_id, 'text': text, 'disable_web_page_preview': True},
-            timeout=10,
-        )
-    except Exception as ex:
-        print(f'[tg_send] error: {ex}')
-
-
 def detect_command_(text):
-    """Return ('topic'|'post'|'news', hint) if text is a recognized command, else (None, None)."""
+    """Recognize all MM commands. Return ('cmd_name', hint) or (None, None)."""
     if not text:
         return None, None
     lc = text.strip().lower()
     if lc.startswith('/topic'):
-        hint = text.strip()[len('/topic'):].strip()
-        return ('topic', hint)
+        return ('topic', text.strip()[len('/topic'):].strip())
     if lc.startswith('/post'):
-        hint = text.strip()[len('/post'):].strip()
-        return ('post', hint)
+        return ('post', text.strip()[len('/post'):].strip())
     if lc.startswith('/news'):
         return ('news', '')
+    if lc.startswith('/approve'):
+        return ('approve', text.strip()[len('/approve'):].strip())
+    if lc.startswith('/fix'):
+        return ('fix', text.strip()[len('/fix'):].strip())
+    if lc.startswith('/skip'):
+        return ('skip', text.strip()[len('/skip'):].strip())
     return None, None
 
 CLOUDINARY_CLOUD = 'dz6mwug4p'
@@ -142,9 +131,6 @@ def telegram_proxy():
     chat_id = chat.get('id')
     cmd, hint = detect_command_(text)
     if cmd:
-        if cmd in ('topic', 'post') and not hint:
-            tg_send(chat_id, 'Send /' + cmd + ' followed by your hint, e.g.\n/post Modric retiring at end of season, full respect close')
-            return jsonify({'ok': True, 'ignored': 'empty hint'}), 200
         topic_id = uuid.uuid4().hex[:8]
         with TOPIC_QUEUE_LOCK:
             TOPIC_QUEUE.append({
@@ -153,11 +139,10 @@ def telegram_proxy():
                 'hint': hint if cmd != 'news' else '__autonomous_trending__',
                 'chat_id': chat_id,
                 'created_at': time.time(),
+                'raw_text': text,
             })
-        if cmd == 'news':
-            tg_send(chat_id, 'Trending news scan queued. Draft preview coming within 30 min.')
-        else:
-            tg_send(chat_id, 'Topic queued (id ' + topic_id + '). Drafting + image search now. Preview within 30 min.')
+        # NO Telegram send from Render - all sends happen from PowerShell queue_processor.ps1
+        # which has the bot token via local SKILL.md (no GitHub-exposable secrets here).
         print(f'[tg-proxy] queued {cmd} id={topic_id} hint="{hint[:60]}"')
         return jsonify({'ok': True, 'queued': cmd, 'id': topic_id}), 200
 
@@ -208,17 +193,8 @@ def topic_queue_delete(topic_id):
     return jsonify({'removed': before - after, 'remaining': after})
 
 
-@app.route('/telegram-notify', methods=['POST'])
-def telegram_notify():
-    """Allows publication_generator.ps1 to send a Telegram message back to a chat.
-    Body: {chat_id, text}"""
-    body = request.get_json(force=True, silent=True) or {}
-    chat_id = body.get('chat_id')
-    text = body.get('text', '')
-    if not chat_id or not text:
-        return jsonify({'error': 'chat_id and text required'}), 400
-    tg_send(chat_id, text)
-    return jsonify({'ok': True})
+# /telegram-notify endpoint removed - PowerShell scripts send directly via Bot API
+# (token stays on the PC, never in this repo).
 
 
 @app.route('/version', methods=['GET'])
