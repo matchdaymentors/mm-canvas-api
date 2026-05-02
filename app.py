@@ -4,6 +4,8 @@ import io
 import json
 import os
 import threading
+import time
+import uuid
 import requests
 import traceback
 from canvas_generator import generate_images, generate_story_images, generate_custom_card, generate_custom_story, generate_match_card, generate_match_story, generate_daily_results, generate_compact_results
@@ -19,6 +21,42 @@ APPS_SCRIPT_URL = os.environ.get(
     'APPS_SCRIPT_URL',
     'https://script.google.com/macros/s/AKfycbwXyDTyO3mqOJNisnZe_cnWJ4C5Mg3MxdWEo64V9MY_Kgc3WtndUxw0FecGfuE0H74kKA/exec'
 )
+
+TG_BOT_TOKEN = os.environ.get('TG_BOT_TOKEN', '8543772848:AAEQZRZ3cUezeV-IMhNmQUksUrnbDO1kUtQ')
+
+# In-memory topic queue. Persists for the lifetime of the Render container
+# (stays alive 24/7 thanks to MM Render Warmer scheduled task pinging /health).
+# Each entry: {'id': uuid, 'cmd': 'topic'|'post'|'news', 'hint': str, 'chat_id': int, 'created_at': float}
+TOPIC_QUEUE = []
+TOPIC_QUEUE_LOCK = threading.Lock()
+
+
+def tg_send(chat_id, text):
+    """Send a Telegram message via Bot API. Used for confirmations + draft previews."""
+    try:
+        requests.post(
+            f'https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage',
+            json={'chat_id': chat_id, 'text': text, 'disable_web_page_preview': True},
+            timeout=10,
+        )
+    except Exception as ex:
+        print(f'[tg_send] error: {ex}')
+
+
+def detect_command_(text):
+    """Return ('topic'|'post'|'news', hint) if text is a recognized command, else (None, None)."""
+    if not text:
+        return None, None
+    lc = text.strip().lower()
+    if lc.startswith('/topic'):
+        hint = text.strip()[len('/topic'):].strip()
+        return ('topic', hint)
+    if lc.startswith('/post'):
+        hint = text.strip()[len('/post'):].strip()
+        return ('post', hint)
+    if lc.startswith('/news'):
+        return ('news', '')
+    return None, None
 
 CLOUDINARY_CLOUD = 'dz6mwug4p'
 CLOUDINARY_PRESET = 'mm_unsigned'
@@ -91,6 +129,36 @@ def telegram_proxy():
     secret_header = request.headers.get('X-Telegram-Bot-Api-Secret-Token', '')
     action = request.args.get('action', 'telegram')
 
+    # =========================================================================
+    # /post /topic /news command interception
+    # Handle directly here (Apps Script doesn't have these handlers deployed yet).
+    # Store topic in TOPIC_QUEUE -> publication_generator.ps1 polls and processes.
+    # =========================================================================
+    post = payload.get('channel_post') or payload.get('message') or {}
+    text = post.get('text', '') or ''
+    chat = post.get('chat', {}) or {}
+    chat_id = chat.get('id')
+    cmd, hint = detect_command_(text)
+    if cmd:
+        if cmd in ('topic', 'post') and not hint:
+            tg_send(chat_id, 'Send /' + cmd + ' followed by your hint, e.g.\n/post Modric retiring at end of season, full respect close')
+            return jsonify({'ok': True, 'ignored': 'empty hint'}), 200
+        topic_id = uuid.uuid4().hex[:8]
+        with TOPIC_QUEUE_LOCK:
+            TOPIC_QUEUE.append({
+                'id': topic_id,
+                'cmd': cmd,
+                'hint': hint if cmd != 'news' else '__autonomous_trending__',
+                'chat_id': chat_id,
+                'created_at': time.time(),
+            })
+        if cmd == 'news':
+            tg_send(chat_id, 'Trending news scan queued. Draft preview coming within 30 min.')
+        else:
+            tg_send(chat_id, 'Topic queued (id ' + topic_id + '). Drafting + image search now. Preview within 30 min.')
+        print(f'[tg-proxy] queued {cmd} id={topic_id} hint="{hint[:60]}"')
+        return jsonify({'ok': True, 'queued': cmd, 'id': topic_id}), 200
+
     def _forward():
         try:
             url = APPS_SCRIPT_URL
@@ -114,6 +182,41 @@ def telegram_proxy():
 
     threading.Thread(target=_forward, daemon=True).start()
     return jsonify({'ok': True}), 200
+
+
+# =============================================================================
+# TOPIC QUEUE endpoints - publication_generator.ps1 polls these
+# =============================================================================
+
+@app.route('/topic-queue', methods=['GET'])
+def topic_queue_get():
+    """Return all pending topics. Also include status counters."""
+    with TOPIC_QUEUE_LOCK:
+        items = list(TOPIC_QUEUE)
+    return jsonify({'count': len(items), 'topics': items})
+
+
+@app.route('/topic-queue/<topic_id>', methods=['DELETE'])
+def topic_queue_delete(topic_id):
+    """Remove a topic by id (after publication_generator processes it)."""
+    with TOPIC_QUEUE_LOCK:
+        before = len(TOPIC_QUEUE)
+        TOPIC_QUEUE[:] = [t for t in TOPIC_QUEUE if t['id'] != topic_id]
+        after = len(TOPIC_QUEUE)
+    return jsonify({'removed': before - after, 'remaining': after})
+
+
+@app.route('/telegram-notify', methods=['POST'])
+def telegram_notify():
+    """Allows publication_generator.ps1 to send a Telegram message back to a chat.
+    Body: {chat_id, text}"""
+    body = request.get_json(force=True, silent=True) or {}
+    chat_id = body.get('chat_id')
+    text = body.get('text', '')
+    if not chat_id or not text:
+        return jsonify({'error': 'chat_id and text required'}), 400
+    tg_send(chat_id, text)
+    return jsonify({'ok': True})
 
 
 @app.route('/version', methods=['GET'])
