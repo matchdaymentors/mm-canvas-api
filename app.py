@@ -29,6 +29,12 @@ APPS_SCRIPT_URL = os.environ.get(
 TOPIC_QUEUE = []
 TOPIC_QUEUE_LOCK = threading.Lock()
 
+# Last seen chat_id from ANY incoming Telegram message. Captured so autonomous
+# publications can send Telegram preview to the right chat. Persists for container
+# lifetime (warmer keeps Render alive 24/7).
+LAST_CHAT = {'chat_id': None, 'updated_at': None}
+LAST_CHAT_LOCK = threading.Lock()
+
 
 def detect_command_(text):
     """Recognize all MM commands. Return ('cmd_name', hint) or (None, None)."""
@@ -129,6 +135,12 @@ def telegram_proxy():
     text = post.get('text', '') or ''
     chat = post.get('chat', {}) or {}
     chat_id = chat.get('id')
+
+    # Capture last seen chat_id (any message: photo, command, plain text)
+    if chat_id:
+        with LAST_CHAT_LOCK:
+            LAST_CHAT['chat_id'] = chat_id
+            LAST_CHAT['updated_at'] = time.time()
     cmd, hint = detect_command_(text)
     if cmd:
         topic_id = uuid.uuid4().hex[:8]
@@ -191,6 +203,14 @@ def topic_queue_delete(topic_id):
         TOPIC_QUEUE[:] = [t for t in TOPIC_QUEUE if t['id'] != topic_id]
         after = len(TOPIC_QUEUE)
     return jsonify({'removed': before - after, 'remaining': after})
+
+
+@app.route('/last-chat-id', methods=['GET'])
+def last_chat_id_get():
+    """Returns the most recent chat_id captured from any incoming Telegram message.
+    Used by publication_generator.ps1 in autonomous mode to know where to send the preview."""
+    with LAST_CHAT_LOCK:
+        return jsonify(dict(LAST_CHAT))
 
 
 # /telegram-notify endpoint removed - PowerShell scripts send directly via Bot API
