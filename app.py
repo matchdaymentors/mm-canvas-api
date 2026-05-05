@@ -53,6 +53,18 @@ def detect_command_(text):
         return ('fix', text.strip()[len('/fix'):].strip())
     if lc.startswith('/skip'):
         return ('skip', text.strip()[len('/skip'):].strip())
+    if lc.startswith('/free'):
+        # /free Liverpool over 2.5 @ 1.85 KO 20:00: reasoning text
+        # Pass everything after /free as the hint - queue_processor parses fields.
+        return ('free', text.strip()[len('/free'):].strip())
+    # NEW WORKFLOW (2026-05-05): /go /fix /kill on pending_draft.json
+    if lc == '/go' or lc.startswith('/go '):
+        return ('go', '')
+    if lc == '/kill' or lc.startswith('/kill '):
+        return ('kill', '')
+    if lc.startswith('/fix '):
+        # /fix "old text" "new text"  -> literal find-replace
+        return ('fix', text.strip()[len('/fix'):].strip())
     return None, None
 
 CLOUDINARY_CLOUD = 'dz6mwug4p'
