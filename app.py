@@ -28,6 +28,10 @@ APPS_SCRIPT_URL = os.environ.get(
 # Each entry: {'id': uuid, 'cmd': str, 'hint': str, 'chat_id': int, 'created_at': float, 'raw_text': str}
 TOPIC_QUEUE = []
 TOPIC_QUEUE_LOCK = threading.Lock()
+# Per-chat fix-mode state. When a chat is in fix mode, the NEXT plain text
+# message from that chat is treated as the fix instruction (free-form).
+FIX_MODE = {}  # chat_id -> True
+FIX_MODE_LOCK = threading.Lock()
 
 # Last seen chat_id from ANY incoming Telegram message. Captured so autonomous
 # publications can send Telegram preview to the right chat. Persists for container
@@ -154,6 +158,36 @@ def telegram_proxy():
             LAST_CHAT['chat_id'] = chat_id
             LAST_CHAT['updated_at'] = time.time()
     cmd, hint = detect_command_(text)
+
+    # === FIX MODE STATE MACHINE ===
+    # If user sends bare /fix (no args), set chat to fix-mode + tell them to describe.
+    # Next plain-text message from that chat is consumed as the fix instruction.
+    if cmd == 'fix' and (not hint or hint.strip() == ''):
+        with FIX_MODE_LOCK:
+            FIX_MODE[chat_id] = True
+        # Queue a marker so queue_processor sends the prompt to user via Telegram
+        topic_id = uuid.uuid4().hex[:8]
+        with TOPIC_QUEUE_LOCK:
+            TOPIC_QUEUE.append({
+                'id': topic_id, 'cmd': 'fix_prompt', 'hint': '',
+                'chat_id': chat_id, 'created_at': time.time(), 'raw_text': text,
+            })
+        print(f'[tg-proxy] fix mode set for chat {chat_id}')
+        return jsonify({'ok': True, 'fix_mode': 'awaiting_description'}), 200
+
+    # If chat is in fix-mode and this message is plain text (no command), use it as the fix.
+    if not cmd and chat_id in FIX_MODE and FIX_MODE.get(chat_id) and text.strip():
+        with FIX_MODE_LOCK:
+            del FIX_MODE[chat_id]
+        topic_id = uuid.uuid4().hex[:8]
+        with TOPIC_QUEUE_LOCK:
+            TOPIC_QUEUE.append({
+                'id': topic_id, 'cmd': 'fix', 'hint': text.strip(),
+                'chat_id': chat_id, 'created_at': time.time(), 'raw_text': text,
+            })
+        print(f'[tg-proxy] fix instruction received from chat {chat_id}: "{text[:80]}"')
+        return jsonify({'ok': True, 'queued': 'fix', 'id': topic_id}), 200
+
     if cmd:
         topic_id = uuid.uuid4().hex[:8]
         with TOPIC_QUEUE_LOCK:
