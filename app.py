@@ -69,6 +69,24 @@ def detect_command_(text):
     if lc.startswith('/fix '):
         # /fix "old text" "new text"  -> literal find-replace
         return ('fix', text.strip()[len('/fix'):].strip())
+    # PLAIN ENGLISH WORKFLOW (2026-05-07): no slash needed.
+    # 'publish N' / 'go N' / 'approve N' -> publish_row N (sheet row)
+    # 'publish all' / 'go all' -> publish_row all
+    # 'kill N' / 'discard N' -> kill_row N
+    # 'kill all' -> kill_row all
+    # bare 'go' / 'yes' / 'publish' / 'approve' / 'do it' -> go (publish pending_draft)
+    # bare 'kill' / 'no' / 'discard' / 'cancel' -> kill
+    import re
+    m = re.match(r'^(?:publish|go|approve)\s+(\d+|all)\s*$', lc)
+    if m:
+        return ('publish_row', m.group(1))
+    m = re.match(r'^(?:kill|discard|skip)\s+(\d+|all)\s*$', lc)
+    if m:
+        return ('kill_row', m.group(1))
+    if lc in ('go', 'yes', 'publish', 'approve', 'do it', 'publish it', 'go publish', 'send it', 'fire it', 'ship it'):
+        return ('go', '')
+    if lc in ('no', 'kill', 'discard', 'cancel', 'skip', 'forget it', 'forget'):
+        return ('kill', '')
     return None, None
 
 CLOUDINARY_CLOUD = 'dz6mwug4p'
