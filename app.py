@@ -69,24 +69,59 @@ def detect_command_(text):
     if lc.startswith('/fix '):
         # /fix "old text" "new text"  -> literal find-replace
         return ('fix', text.strip()[len('/fix'):].strip())
-    # PLAIN ENGLISH WORKFLOW (2026-05-07): no slash needed.
-    # 'publish N' / 'go N' / 'approve N' -> publish_row N (sheet row)
-    # 'publish all' / 'go all' -> publish_row all
-    # 'kill N' / 'discard N' -> kill_row N
-    # 'kill all' -> kill_row all
-    # bare 'go' / 'yes' / 'publish' / 'approve' / 'do it' -> go (publish pending_draft)
-    # bare 'kill' / 'no' / 'discard' / 'cancel' -> kill
+    # PLAIN ENGLISH WORKFLOW (2026-05-07, expanded 2026-05-10):
+    # See memory/feedback_natural_language_approval.md - Iliyan typed "I approve"
+    # and the queue stayed empty. We now match approval intent ANYWHERE in the message.
+    #
+    # Numbered targets first ('publish N' / 'kill N')
+    # Then natural-language approval/rejection that includes the intent ANYWHERE
     import re
-    m = re.match(r'^(?:publish|go|approve)\s+(\d+|all)\s*$', lc)
+    m = re.match(r'^(?:i\s+)?(?:publish|go|approve)\s+(\d+|all)\s*\.?\s*$', lc)
     if m:
         return ('publish_row', m.group(1))
-    m = re.match(r'^(?:kill|discard|skip)\s+(\d+|all)\s*$', lc)
+    m = re.match(r'^(?:i\s+)?(?:kill|discard|skip|cancel|delete)\s+(\d+|all)\s*\.?\s*$', lc)
     if m:
         return ('kill_row', m.group(1))
-    if lc in ('go', 'yes', 'publish', 'approve', 'do it', 'publish it', 'go publish', 'send it', 'fire it', 'ship it'):
+
+    # Natural-language approval - matches phrases ANYWHERE in message body.
+    # Examples that must match:
+    #   "I approve" / "I approve this" / "I approve your last message"
+    #   "looks good" / "looking good" / "this looks great"
+    #   "I like it" / "I like that"
+    #   "go ahead" / "let's go" / "ok go" / "ok publish"
+    #   "yes" alone or "yes please" / "yes do it"
+    approval_patterns = [
+        r'\bi\s+approve\b',
+        r'\bapproved\b',
+        r'\blooks?\s+(?:good|great|perfect|fine)\b',
+        r'\blooking\s+(?:good|great|perfect)\b',
+        r'\bi\s+like\s+(?:it|that|this)\b',
+        r'\b(?:lets?|let\'s)\s+go\b',
+        r'\bgo\s+(?:ahead|for\s+it|publish)\b',
+        r'\bok\s+(?:publish|go|do\s+it)\b',
+        r'\b(?:do|send|ship|fire|post)\s+it\b',
+        r'\bpublish\s+(?:it|this|that)\b',
+        r'\bpost\s+(?:it|this|that)\b',
+    ]
+    for p in approval_patterns:
+        if re.search(p, lc):
+            return ('go', '')
+    # Bare single-word approvals
+    if lc.rstrip('.!') in ('go', 'yes', 'publish', 'approve', 'shipit', 'fireit', 'sendit', 'postit'):
         return ('go', '')
-    if lc in ('no', 'kill', 'discard', 'cancel', 'skip', 'forget it', 'forget'):
+
+    # Natural-language rejection
+    rejection_patterns = [
+        r'\bi\s+(?:reject|don\'?t\s+approve|don\'?t\s+want|don\'?t\s+like)\b',
+        r'\b(?:kill|discard|cancel|forget)\s+(?:it|this|that)\b',
+        r'\bdon\'?t\s+publish\b',
+    ]
+    for p in rejection_patterns:
+        if re.search(p, lc):
+            return ('kill', '')
+    if lc.rstrip('.!') in ('no', 'kill', 'discard', 'cancel', 'skip', 'forget it', 'forget', 'stop', 'abort'):
         return ('kill', '')
+
     return None, None
 
 CLOUDINARY_CLOUD = 'dz6mwug4p'
