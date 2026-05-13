@@ -39,6 +39,13 @@ FIX_MODE_LOCK = threading.Lock()
 LAST_CHAT = {'chat_id': None, 'updated_at': None}
 LAST_CHAT_LOCK = threading.Lock()
 
+# 2026-05-14: In-memory ring buffer of every Telegram message received, so Claude
+# can read what Iliyan typed (independent of regex matching). Exposed via GET
+# /telegram-history. Persists for container lifetime (warmer keeps Render alive).
+INBOX = []  # list of {ts, chat_id, text, detected_cmd, action}
+INBOX_LOCK = threading.Lock()
+INBOX_MAX = 100
+
 
 def detect_command_(text):
     """Recognize all MM commands. Return ('cmd_name', hint) or (None, None)."""
@@ -220,6 +227,21 @@ def telegram_proxy():
             LAST_CHAT['updated_at'] = time.time()
     cmd, hint = detect_command_(text)
 
+    # 2026-05-14: log EVERY received Telegram message to the inbox so Claude can
+    # read what Iliyan typed (independent of regex matching).
+    if text:
+        with INBOX_LOCK:
+            INBOX.append({
+                'ts': time.time(),
+                'chat_id': chat_id,
+                'text': text,
+                'detected_cmd': cmd,
+                'detected_hint': hint,
+            })
+            # Keep only last INBOX_MAX entries
+            if len(INBOX) > INBOX_MAX:
+                del INBOX[0:len(INBOX) - INBOX_MAX]
+
     # === FIX MODE STATE MACHINE ===
     # If user sends bare /fix (no args), set chat to fix-mode + tell them to describe.
     # Next plain-text message from that chat is consumed as the fix instruction.
@@ -318,6 +340,26 @@ def last_chat_id_get():
     Used by publication_generator.ps1 in autonomous mode to know where to send the preview."""
     with LAST_CHAT_LOCK:
         return jsonify(dict(LAST_CHAT))
+
+
+@app.route('/telegram-history', methods=['GET'])
+def telegram_history_get():
+    """Returns the last N Telegram messages received (in-memory ring buffer).
+    2026-05-14: built so Claude can read what Iliyan typed in Telegram without
+    relying on regex matching. Optional ?limit=20 and ?since=<unix_ts>."""
+    try:
+        limit = int(request.args.get('limit', 30))
+    except (TypeError, ValueError):
+        limit = 30
+    limit = max(1, min(limit, INBOX_MAX))
+    try:
+        since = float(request.args.get('since', 0))
+    except (TypeError, ValueError):
+        since = 0
+    with INBOX_LOCK:
+        out = [m for m in INBOX if m.get('ts', 0) >= since]
+    out = out[-limit:]
+    return jsonify({'count': len(out), 'messages': out})
 
 
 # /telegram-notify endpoint removed - PowerShell scripts send directly via Bot API
