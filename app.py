@@ -73,15 +73,23 @@ def detect_command_(text):
     # See memory/feedback_natural_language_approval.md - Iliyan typed "I approve"
     # and the queue stayed empty. We now match approval intent ANYWHERE in the message.
     #
-    # Numbered targets first ('publish N' / 'kill N')
+    # Numbered targets first ('publish N' / 'kill N' / 'approved N' / 'approved all')
     # Then natural-language approval/rejection that includes the intent ANYWHERE
+    # 2026-05-13: added "approved" (past tense) to numbered pattern after Iliyan
+    # typed "I approved all" and queue stayed empty - "approved" needs to match
+    # alongside "approve". Same for past-tense "killed".
     import re
-    m = re.match(r'^(?:i\s+)?(?:publish|go|approve)\s+(\d+|all)\s*\.?\s*$', lc)
+    m = re.match(r'^(?:i\s+)?(?:publish|go|approve[ds]?|ship|post)(?:\s+them)?\s+(\d+|all)\s*\.?\s*$', lc)
     if m:
         return ('publish_row', m.group(1))
-    m = re.match(r'^(?:i\s+)?(?:kill|discard|skip|cancel|delete)\s+(\d+|all)\s*\.?\s*$', lc)
+    m = re.match(r'^(?:i\s+)?(?:kill|killed|discard|discarded|skip|skipped|cancel|cancelled|delete|deleted)\s+(\d+|all)\s*\.?\s*$', lc)
     if m:
         return ('kill_row', m.group(1))
+    # Also catch "approved all 4" / "publish them all" / "i approve everything" variants
+    if re.search(r'\b(?:i\s+)?(?:approved?|publish(?:ed)?)\s+(?:them\s+)?all\b', lc):
+        return ('publish_row', 'all')
+    if re.search(r'\bapproved\s+everything\b', lc) or re.search(r'\bpublish\s+everything\b', lc):
+        return ('publish_row', 'all')
 
     # Natural-language approval - matches phrases ANYWHERE in message body.
     # Examples that must match:
@@ -91,7 +99,7 @@ def detect_command_(text):
     #   "go ahead" / "let's go" / "ok go" / "ok publish"
     #   "yes" alone or "yes please" / "yes do it"
     approval_patterns = [
-        r'\bi\s+approve\b',
+        r'\bi\s+approved?\b',      # "i approve" OR "i approved"
         r'\bapproved\b',
         r'\blooks?\s+(?:good|great|perfect|fine)\b',
         r'\blooking\s+(?:good|great|perfect)\b',
