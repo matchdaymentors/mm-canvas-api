@@ -267,7 +267,12 @@ def telegram_proxy():
     chat_id = chat.get('id')
 
     # Capture last seen chat_id (any message: photo, command, plain text)
-    if chat_id:
+    # 2026-05-14: REJECT obviously-test chat_ids. Real Telegram channel ids are
+    # large negative integers (-100xxxxxxxxxx). Real DMs are positive ints in the
+    # billions. Anything 0 < id < 1_000_000 is a synthetic test id from Claude's
+    # regex/proxy testing - polluting LAST_CHAT with these breaks autonomous
+    # publication previews (they get sent to a dead chat_id and Iliyan sees nothing).
+    if chat_id and not (0 < chat_id < 1_000_000):
         with LAST_CHAT_LOCK:
             LAST_CHAT['chat_id'] = chat_id
             LAST_CHAT['updated_at'] = time.time()
