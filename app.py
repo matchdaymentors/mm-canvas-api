@@ -98,18 +98,52 @@ def detect_command_(text):
     if re.search(r'\bapproved\s+everything\b', lc) or re.search(r'\bpublish\s+everything\b', lc):
         return ('publish_row', 'all')
 
+    # =========================================================================
+    # 2026-05-14: FREE-FORM FIX DETECTION (must run BEFORE approval check
+    # because compound messages like "this is good BUT [fix]" need to be
+    # treated as FIX, not as silent approval.)
+    #
+    # Triggered after Iliyan typed "This one is good, but when you get pictures
+    # from poste should get the ones with green dicks on them" and the regex
+    # treated nothing as command. Also triggered by "The picture you used is
+    # not in the right size and is missing the last rules we set."
+    # =========================================================================
+    fix_patterns = [
+        r'\bis\s+(?:wrong|missing|broken|incorrect|off|bad)\b',
+        r'\bis\s+not\s+(?:right|correct|good|in\s+the\s+right|matching|working)\b',
+        r'\bare\s+(?:wrong|missing|broken|incorrect|off|bad)\b',
+        r'\b(?:should|needs?\s+to|need\s+to|must|have\s+to)\s+(?:be|have|use|include|change|get|fix|update|swap|replace)\b',
+        r'\bchange\s+(?:to|the|this|it|that)\b',
+        r'\bfix\s+(?:it|this|that|the)\b',
+        r'\b(?:wrong|missing|broken)\s+(?:size|picture|image|photo|colou?r|font|word|name|player|crest|logo|caption|hashtags?)\b',
+        r'\bdoesn\'?t\s+(?:look|fit|work|match|render|seem|read)\b',
+        r'\bnot\s+(?:in\s+the\s+right|the\s+right|right)\s+(?:size|colou?r|format|aspect|crop|font)\b',
+        r'\b(?:replace|swap|switch)\s+(?:the\s+)?(?:photo|image|picture|word|caption)\b',
+        r'\b(?:add|remove|delete|drop)\s+(?:the\s+)?(?:logo|caption|hashtags?|word|line|image|photo)\b',
+        r'\b(?:make\s+it|make\s+the)\s+(?:\w+\s+){0,3}(?:bigger|smaller|gold|white|dark|brighter|darker|larger|smaller|bolder|thinner|red|green|blue|black)\b',
+        r'\bmissing\s+(?:the\s+)?(?:rules?|logo|hashtags?|caption|attribution|credit)\b',
+        r'\b(?:re\s*-?\s*do|redo|rebuild|regenerate)\b',
+    ]
+    for p in fix_patterns:
+        if re.search(p, lc):
+            return ('fix', text.strip())
+
     # Natural-language approval - matches phrases ANYWHERE in message body.
     # Examples that must match:
     #   "I approve" / "I approve this" / "I approve your last message"
-    #   "looks good" / "looking good" / "this looks great"
+    #   "looks good" / "looking good" / "this looks great" / "this is good"
+    #   "this one is good" / "that's good" / "it is great" / "perfect"
     #   "I like it" / "I like that"
     #   "go ahead" / "let's go" / "ok go" / "ok publish"
     #   "yes" alone or "yes please" / "yes do it"
     approval_patterns = [
         r'\bi\s+approved?\b',      # "i approve" OR "i approved"
         r'\bapproved\b',
-        r'\blooks?\s+(?:good|great|perfect|fine)\b',
-        r'\blooking\s+(?:good|great|perfect)\b',
+        r'\blooks?\s+(?:good|great|perfect|fine|nice|sick|clean)\b',
+        r'\blooking\s+(?:good|great|perfect|nice|sick|clean)\b',
+        # 2026-05-14: NEW - "this/it/that (one) is/looks good/great/perfect"
+        r'\b(?:this|it|that)\s+(?:one\s+)?(?:is|looks?)\s+(?:good|great|perfect|fine|nice|sick|clean|the\s+one)\b',
+        r'\bthat\'?s\s+(?:good|great|perfect|fine|nice|the\s+one)\b',
         r'\bi\s+like\s+(?:it|that|this)\b',
         r'\b(?:lets?|let\'s)\s+go\b',
         r'\bgo\s+(?:ahead|for\s+it|publish)\b',
@@ -121,8 +155,9 @@ def detect_command_(text):
     for p in approval_patterns:
         if re.search(p, lc):
             return ('go', '')
-    # Bare single-word approvals
-    if lc.rstrip('.!') in ('go', 'yes', 'publish', 'approve', 'shipit', 'fireit', 'sendit', 'postit'):
+    # Bare single-word approvals (incl. "perfect" / "great" / "nice" alone)
+    if lc.rstrip('.!') in ('go', 'yes', 'publish', 'approve', 'shipit', 'fireit', 'sendit', 'postit',
+                           'perfect', 'great', 'nice', 'good', 'love it', 'loveit'):
         return ('go', '')
 
     # Natural-language rejection
@@ -136,6 +171,17 @@ def detect_command_(text):
             return ('kill', '')
     if lc.rstrip('.!') in ('no', 'kill', 'discard', 'cancel', 'skip', 'forget it', 'forget', 'stop', 'abort'):
         return ('kill', '')
+
+    # =========================================================================
+    # 2026-05-14: SILENT-FAILURE PROTECTION
+    # If we got here with a non-trivial text (>15 chars), nothing matched.
+    # Return 'unknown' so telegram_proxy can queue an "I didn't catch this"
+    # topic and queue_processor will reply on Telegram instead of going silent.
+    # Skips: very short messages (likely emoji/ack) and slash commands (already
+    # handled above by name).
+    # =========================================================================
+    if len(text.strip()) > 15 and not text.strip().startswith('/'):
+        return ('unknown', text.strip())
 
     return None, None
 
@@ -284,6 +330,8 @@ def telegram_proxy():
             })
         # NO Telegram send from Render - all sends happen from PowerShell queue_processor.ps1
         # which has the bot token via local SKILL.md (no GitHub-exposable secrets here).
+        # 2026-05-14: 'unknown' is queued the same way - queue_processor will Telegram
+        # back asking Iliyan to clarify (approve / fix / kill / ignore).
         print(f'[tg-proxy] queued {cmd} id={topic_id} hint="{hint[:60]}"')
         return jsonify({'ok': True, 'queued': cmd, 'id': topic_id}), 200
 
