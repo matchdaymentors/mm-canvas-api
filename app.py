@@ -156,8 +156,20 @@ def detect_command_(text):
         if re.search(p, lc):
             return ('go', '')
     # Bare single-word approvals (incl. "perfect" / "great" / "nice" alone)
-    if lc.rstrip('.!') in ('go', 'yes', 'publish', 'approve', 'shipit', 'fireit', 'sendit', 'postit',
-                           'perfect', 'great', 'nice', 'good', 'love it', 'loveit'):
+    # 2026-05-16 EXPANSION: 26 short-form replies were ALL silent-dropping.
+    # Includes A/B/C/D (binary-choice answers), y/yes/yep/yeah/ya, sure/fine/cool/ok/k/kk,
+    # ship/doit, and 1/2/3 numbered-choice answers.
+    bare_approvals = (
+        'go', 'yes', 'publish', 'approve', 'shipit', 'fireit', 'sendit', 'postit',
+        'perfect', 'great', 'nice', 'good', 'love it', 'loveit',
+        # 2026-05-16 additions:
+        'a', 'go a', 'option a', 'pick a', 'do a', 'a please',  # binary choice "A"
+        '1', 'go 1', 'option 1', 'pick 1', 'do 1', '1 please',  # numbered choice "1"
+        'y', 'yep', 'yeah', 'ya', 'yup', 'yes please',
+        'sure', 'fine', 'cool', 'ok', 'okay', 'k', 'kk',
+        'ship', 'do it', 'doit', 'send it', 'post it', 'publish it'
+    )
+    if lc.rstrip('.!') in bare_approvals:
         return ('go', '')
 
     # Natural-language rejection
@@ -169,18 +181,27 @@ def detect_command_(text):
     for p in rejection_patterns:
         if re.search(p, lc):
             return ('kill', '')
-    if lc.rstrip('.!') in ('no', 'kill', 'discard', 'cancel', 'skip', 'forget it', 'forget', 'stop', 'abort'):
+    # Bare rejections - 2026-05-16 expanded with B/C choice answers + nope/nah/n/2
+    bare_rejections = (
+        'no', 'kill', 'discard', 'cancel', 'skip', 'forget it', 'forget', 'stop', 'abort',
+        # 2026-05-16 additions:
+        'b', 'go b', 'option b', 'pick b', 'do b', 'b please',  # binary choice "B"
+        '2', 'go 2', 'option 2', 'pick 2', 'do 2', '2 please',  # numbered choice "2"
+        'n', 'nope', 'nah', 'nay', 'no thanks', 'no thx'
+    )
+    if lc.rstrip('.!') in bare_rejections:
         return ('kill', '')
 
     # =========================================================================
     # 2026-05-14: SILENT-FAILURE PROTECTION
-    # If we got here with a non-trivial text (>15 chars), nothing matched.
-    # Return 'unknown' so telegram_proxy can queue an "I didn't catch this"
-    # topic and queue_processor will reply on Telegram instead of going silent.
-    # Skips: very short messages (likely emoji/ack) and slash commands (already
-    # handled above by name).
+    # 2026-05-16 LOWERED FROM 15 to 1 char. The 15-char gate was the source of
+    # 26 silent drops including Iliyan's "A" answer to a binary-choice menu.
+    # Now ANY unmatched non-slash message gets 'unknown' which queue_processor
+    # turns into a "I didn't catch this, reply approve/fix/kill" Telegram.
+    # The bare_approvals + bare_rejections lists above should catch most short
+    # answers, so 'unknown' fires only for genuinely unparseable input.
     # =========================================================================
-    if len(text.strip()) > 15 and not text.strip().startswith('/'):
+    if len(text.strip()) >= 1 and not text.strip().startswith('/'):
         return ('unknown', text.strip())
 
     return None, None
