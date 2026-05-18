@@ -301,14 +301,26 @@ def telegram_proxy():
 
     # 2026-05-14: log EVERY received Telegram message to the inbox so Claude can
     # read what Iliyan typed (independent of regex matching).
-    if text:
+    # 2026-05-18: ALSO capture photo file_id when message contains a photo so Claude
+    # can download it via Telegram getFile + use it in publication compositing
+    photo_file_id = None
+    photo_caption = post.get('caption', '') or ''
+    if post.get('photo'):
+        # Largest photo size = last in array (Telegram sorts ascending)
+        photos = post.get('photo') or []
+        if photos:
+            largest = max(photos, key=lambda p: p.get('file_size', 0))
+            photo_file_id = largest.get('file_id')
+
+    if text or photo_file_id:
         with INBOX_LOCK:
             INBOX.append({
                 'ts': time.time(),
                 'chat_id': chat_id,
-                'text': text,
+                'text': text or photo_caption,
                 'detected_cmd': cmd,
                 'detected_hint': hint,
+                'photo_file_id': photo_file_id,
             })
             # Keep only last INBOX_MAX entries
             if len(INBOX) > INBOX_MAX:
