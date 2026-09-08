@@ -811,6 +811,7 @@ def generate_compact_results_endpoint():
 # thread so the site never waits on Patreon once warm.
 # ---------------------------------------------------------------------------
 import re as _re
+from datetime import datetime as _dt, timezone as _tz
 
 PATREON_TOKEN = os.environ.get('PATREON_TOKEN', '').strip()
 PATREON_CAMPAIGN_ID = os.environ.get('PATREON_CAMPAIGN_ID', '13160890').strip()
@@ -967,13 +968,36 @@ def patreon_free_latest():
         posts = _patreon_posts()
     except Exception as e:
         return _patreon_json({'error': 'patreon unavailable: %s' % e}, 502)
-    for p in posts:
+    # Rule (Iliyan 2026-09-08): return today's / unsettled free pick (<= 36 h old, no win mark) as 'pending';
+    # otherwise the most recent free pick that WON. A lost free pick is never returned to the public site.
+    now = time.time()
+    pending = None
+    won = None
+    for p in posts:  # newest first
         if not p['is_public']:
             continue
-        if _re.match(r'^\s*free\b', p['title'].replace('️', '').replace(_WIN_MARK, ''), _re.I):
-            b = _bet_from_title(p)
-            b['cached_at'] = _PAT['ts']
-            return _patreon_json(b)
+        if not _re.match(r'^\s*free\b', p['title'].replace('️', '').replace(_WIN_MARK, ''), _re.I):
+            continue
+        b = _bet_from_title(p)
+        if b['is_win']:
+            if won is None:
+                won = b
+            continue
+        try:
+            ts = _dt.strptime(p['published_at'][:19], '%Y-%m-%dT%H:%M:%S').replace(tzinfo=_tz.utc).timestamp()
+        except Exception:
+            ts = 0
+        if pending is None and (now - ts) <= 36 * 3600:
+            pending = b
+        if pending is not None and won is not None:
+            break
+    pick = pending or won
+    if pick:
+        pick['status'] = 'pending' if pick is pending else 'won'
+        pick['cached_at'] = _PAT['ts']
+        if won is not None and pick is pending:
+            pick['latest_won'] = won
+        return _patreon_json(pick)
     return _patreon_json({'error': 'no free pick found', 'cached_posts': len(posts), 'cached_at': _PAT['ts'], 'refreshing': _PAT['refreshing'], 'patreon_error': _PAT['error']}, 404)
 
 
