@@ -911,7 +911,8 @@ def _bet_from_title(post):
     btype = _re.sub(r'system\s*(\d+)\s*(?:out of|/)\s*(\d+)', r'System \1/\2', btype, flags=_re.I)
     btype = btype[:1].upper() + btype[1:] if btype else 'Pick'
     odds = None
-    mo = _re.search(r'(\d{1,3}[.,]\d{2})', clean)
+    no_date = _re.sub(r'\(\s*\d{1,2}\.\d{1,2}(?:\.\d{4})?\s*\)', ' ', clean)  # never read the (DD.MM.YYYY) date as odds
+    mo = _re.search(r'(\d{1,3}[.,]\d{2})', no_date)
     if mo:
         odds = float(mo.group(1).replace(',', '.'))
     cashout = None
