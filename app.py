@@ -819,7 +819,7 @@ PATREON_ALLOWED_ORIGINS = (
     'https://matchdaymentors.com', 'https://www.matchdaymentors.com',
     'http://matchdaymentors.com', 'http://www.matchdaymentors.com',
 )
-_PAT = {'ts': 0.0, 'posts': None, 'refreshing': False, 'error': None}
+_PAT = {'ts': 0.0, 'posts': None, 'refreshing': False, 'error': None, 'progress': 0, 'pages': 0, 'started': 0.0}
 _PAT_LOCK = threading.Lock()
 _WIN_MARK = '✅'  # white heavy check mark (Patreon titles use it, often followed by U+FE0F)
 
@@ -829,6 +829,7 @@ def _patreon_fetch_all():
     base = 'https://www.patreon.com/api/oauth2/v2/campaigns/%s/posts' % PATREON_CAMPAIGN_ID
     url = base + '?fields%5Bpost%5D=title,content,published_at,url,is_public,is_paid&page%5Bcount%5D=500'
     out = []
+    pages = 0
     pages = 0
     while url and pages < 20:
         pages += 1
@@ -846,6 +847,10 @@ def _patreon_fetch_all():
                 'is_public': bool(a.get('is_public')),
             })
         url = (j.get('links') or {}).get('next')
+        with _PAT_LOCK:
+            _PAT['progress'] = len(out); _PAT['pages'] = pages
+        if pages >= 12:
+            break
     out.sort(key=lambda x: x['published_at'], reverse=True)
     return out
 
@@ -869,6 +874,7 @@ def _patreon_refresh(block=False):
         if _PAT['refreshing']:
             return
         _PAT['refreshing'] = True
+        _PAT['started'] = time.time()
     if block:
         work()
     else:
@@ -998,7 +1004,8 @@ def patreon_status():
     with _PAT_LOCK:
         n = len(_PAT['posts'] or [])
         return _patreon_json({'token_set': bool(PATREON_TOKEN), 'cached_posts': n, 'cached_at': _PAT['ts'],
-                              'refreshing': _PAT['refreshing'], 'patreon_error': _PAT['error'], 'ttl': PATREON_CACHE_TTL})
+                              'refreshing': _PAT['refreshing'], 'patreon_error': _PAT['error'], 'ttl': PATREON_CACHE_TTL,
+                              'progress_posts': _PAT['progress'], 'pages': _PAT['pages'], 'refresh_seconds': round(time.time() - _PAT['started']) if _PAT['refreshing'] else 0})
 
 
 if PATREON_TOKEN:
