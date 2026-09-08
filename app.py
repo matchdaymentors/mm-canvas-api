@@ -834,7 +834,7 @@ def _patreon_fetch_all():
     pages = 0
     while url and pages < 20:
         pages += 1
-        r = requests.get(url, headers={'Authorization': 'Bearer ' + PATREON_TOKEN}, timeout=25)
+        r = requests.get(url, headers={'Authorization': 'Bearer ' + PATREON_TOKEN, 'User-Agent': 'mm-canvas-api/1.0'}, timeout=(10, 45))
         r.raise_for_status()
         j = r.json()
         for p in j.get('data', []):
@@ -872,8 +872,10 @@ def _patreon_refresh(block=False):
             with _PAT_LOCK:
                 _PAT['refreshing'] = False
     with _PAT_LOCK:
-        if _PAT['refreshing']:
+        if _PAT['refreshing'] and (time.time() - _PAT['started']) < 150:
             return
+        if _PAT['refreshing']:
+            _PAT['error'] = 'previous refresh timed out after %ds' % int(time.time() - _PAT['started'])
         _PAT['refreshing'] = True
         _PAT['started'] = time.time()
     if block:
