@@ -968,7 +968,7 @@ def patreon_free_latest():
             b = _bet_from_title(p)
             b['cached_at'] = _PAT['ts']
             return _patreon_json(b)
-    return _patreon_json({'error': 'no free pick found'}, 404)
+    return _patreon_json({'error': 'no free pick found', 'cached_posts': len(posts), 'cached_at': _PAT['ts'], 'refreshing': _PAT['refreshing'], 'patreon_error': _PAT['error']}, 404)
 
 
 @app.route('/patreon/latest-settled', methods=['GET'])
@@ -990,7 +990,15 @@ def patreon_latest_settled():
         items.append(b)
         if len(items) >= limit:
             break
-    return _patreon_json({'items': items, 'cached_at': _PAT['ts'], 'count': len(items)})
+    return _patreon_json({'items': items, 'cached_at': _PAT['ts'], 'count': len(items), 'cached_posts': len(posts), 'refreshing': _PAT['refreshing'], 'patreon_error': _PAT['error']})
+
+
+@app.route('/patreon/status', methods=['GET'])
+def patreon_status():
+    with _PAT_LOCK:
+        n = len(_PAT['posts'] or [])
+        return _patreon_json({'token_set': bool(PATREON_TOKEN), 'cached_posts': n, 'cached_at': _PAT['ts'],
+                              'refreshing': _PAT['refreshing'], 'patreon_error': _PAT['error'], 'ttl': PATREON_CACHE_TTL})
 
 
 if PATREON_TOKEN:
