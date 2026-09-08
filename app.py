@@ -801,6 +801,203 @@ def generate_compact_results_endpoint():
         return jsonify({'error': str(e), 'traceback': error_msg}), 500
 
 
+# ---------------------------------------------------------------------------
+# 2026-09-08 (site v12): Patreon read-only proxy for matchdaymentors.com.
+#   GET /patreon/free-latest     -> latest public post whose title starts with "Free"
+#   GET /patreon/latest-settled  -> newest public bet posts marked settled-won (checkmark in title)
+# Creator token comes ONLY from env PATREON_TOKEN (503 if unset). Never exposed to the page.
+# The v2 API returns oldest-first and ignores sort, so we page through the archive at
+# 500/page (~5 requests) and keep a 5-minute in-memory cache; refreshes run in a background
+# thread so the site never waits on Patreon once warm.
+# ---------------------------------------------------------------------------
+import re as _re
+
+PATREON_TOKEN = os.environ.get('PATREON_TOKEN', '').strip()
+PATREON_CAMPAIGN_ID = os.environ.get('PATREON_CAMPAIGN_ID', '13160890').strip()
+PATREON_CACHE_TTL = 300  # 5 minutes
+PATREON_ALLOWED_ORIGINS = (
+    'https://matchdaymentors.com', 'https://www.matchdaymentors.com',
+    'http://matchdaymentors.com', 'http://www.matchdaymentors.com',
+)
+_PAT = {'ts': 0.0, 'posts': None, 'refreshing': False, 'error': None}
+_PAT_LOCK = threading.Lock()
+_WIN_MARK = '✅'  # white heavy check mark (Patreon titles use it, often followed by U+FE0F)
+
+
+def _patreon_fetch_all():
+    """Page through every post of the campaign (oldest first). Returns list of dicts."""
+    base = 'https://www.patreon.com/api/oauth2/v2/campaigns/%s/posts' % PATREON_CAMPAIGN_ID
+    url = base + '?fields%5Bpost%5D=title,content,published_at,url,is_public,is_paid&page%5Bcount%5D=500'
+    out = []
+    pages = 0
+    while url and pages < 20:
+        pages += 1
+        r = requests.get(url, headers={'Authorization': 'Bearer ' + PATREON_TOKEN}, timeout=25)
+        r.raise_for_status()
+        j = r.json()
+        for p in j.get('data', []):
+            a = p.get('attributes', {}) or {}
+            out.append({
+                'id': str(p.get('id')),
+                'title': (a.get('title') or '').strip(),
+                'content': a.get('content') or '',
+                'published_at': a.get('published_at') or '',
+                'url': a.get('url') or '',
+                'is_public': bool(a.get('is_public')),
+            })
+        url = (j.get('links') or {}).get('next')
+    out.sort(key=lambda x: x['published_at'], reverse=True)
+    return out
+
+
+def _patreon_refresh(block=False):
+    """Refresh the cache. block=True waits for the result (first load); otherwise background."""
+    def work():
+        try:
+            posts = _patreon_fetch_all()
+            with _PAT_LOCK:
+                _PAT['posts'] = posts
+                _PAT['ts'] = time.time()
+                _PAT['error'] = None
+        except Exception as e:  # keep stale data, remember the error
+            with _PAT_LOCK:
+                _PAT['error'] = str(e)
+        finally:
+            with _PAT_LOCK:
+                _PAT['refreshing'] = False
+    with _PAT_LOCK:
+        if _PAT['refreshing']:
+            return
+        _PAT['refreshing'] = True
+    if block:
+        work()
+    else:
+        threading.Thread(target=work, daemon=True).start()
+
+
+def _patreon_posts():
+    """Return cached posts, refreshing when older than the TTL. First call blocks."""
+    with _PAT_LOCK:
+        posts = _PAT['posts']
+        stale = (time.time() - _PAT['ts']) > PATREON_CACHE_TTL
+    if posts is None:
+        _patreon_refresh(block=True)
+        with _PAT_LOCK:
+            posts = _PAT['posts']
+    elif stale:
+        _patreon_refresh(block=False)
+    return posts or []
+
+
+def _bet_from_title(post):
+    """Parse a bet post title into the fields the website shows (never the games)."""
+    title = post['title']
+    t = title.replace('️', '')
+    is_win = _WIN_MARK in t
+    clean = t.replace(_WIN_MARK, ' ')
+    is_free = bool(_re.match(r'^\s*free\b', clean, _re.I))
+    m = _re.search(r'(live\s*bet\s*builder|live\s*bet|value\s*bet|outright|single|double|treble|\d+\s*-?\s*folds?|system\s*\d+\s*(?:out\s*of|/)\s*\d+)', clean, _re.I)
+    btype = _re.sub(r'\s+', ' ', m.group(1)).strip() if m else ''
+    btype = _re.sub(r'(\d+)\s*-?\s*folds?', r'\1-fold', btype, flags=_re.I)
+    btype = _re.sub(r'system\s*(\d+)\s*(?:out of|/)\s*(\d+)', r'System \1/\2', btype, flags=_re.I)
+    btype = btype[:1].upper() + btype[1:] if btype else 'Pick'
+    odds = None
+    mo = _re.search(r'(\d{1,3}[.,]\d{2})', clean)
+    if mo:
+        odds = float(mo.group(1).replace(',', '.'))
+    cashout = None
+    mc = _re.search(r'cash(?:ed)?\s*out[^\d]{0,40}?(\d{1,3}[.,]\d{1,2})', clean, _re.I)
+    if mc:
+        cashout = float(mc.group(1).replace(',', '.'))
+    sel = 1
+    ms = _re.search(r'(\d+)-fold', btype)
+    if _re.search(r'double', btype, _re.I):
+        sel = 2
+    elif _re.search(r'treble', btype, _re.I):
+        sel = 3
+    elif ms:
+        sel = int(ms.group(1))
+    else:
+        msys = _re.search(r'System \d+/(\d+)', btype)
+        if msys:
+            sel = int(msys.group(1))
+    date = ''
+    md = _re.search(r'\((\d{2})\.(\d{2})(?:\.(\d{4}))?\)', clean)
+    if md:
+        yr = md.group(3) or (post['published_at'][:4] if post['published_at'] else '')
+        date = '%s.%s.%s' % (md.group(1), md.group(2), yr)
+    elif post['published_at']:
+        p = post['published_at'][:10].split('-')
+        if len(p) == 3:
+            date = '%s.%s.%s' % (p[2], p[1], p[0])
+    stake = None
+    mst = _re.search(r'bet\s*(\d+(?:[.,]\d+)?)\s*%', _re.sub(r'<[^>]+>', ' ', post.get('content') or ''), _re.I)
+    if mst:
+        stake = mst.group(1).replace(',', '.') + '%'
+    return {
+        'id': post['id'], 'title': title, 'type': btype, 'odds': odds, 'cashout': cashout,
+        'selections': sel, 'stake': stake, 'date': date, 'published_at': post['published_at'],
+        'url': ('https://www.patreon.com' + post['url']) if post['url'].startswith('/') else post['url'],
+        'is_public': post['is_public'], 'is_win': is_win, 'is_free': is_free,
+    }
+
+
+def _patreon_json(payload, status=200):
+    resp = jsonify(payload)
+    resp.status_code = status
+    origin = request.headers.get('Origin', '')
+    if origin in PATREON_ALLOWED_ORIGINS or _re.match(r'^https?://(localhost|127\.0\.0\.1)(:\d+)?$', origin or ''):
+        resp.headers['Access-Control-Allow-Origin'] = origin
+        resp.headers['Vary'] = 'Origin'
+    resp.headers['Cache-Control'] = 'public, max-age=300'
+    return resp
+
+
+@app.route('/patreon/free-latest', methods=['GET'])
+def patreon_free_latest():
+    if not PATREON_TOKEN:
+        return _patreon_json({'error': 'PATREON_TOKEN not configured'}, 503)
+    try:
+        posts = _patreon_posts()
+    except Exception as e:
+        return _patreon_json({'error': 'patreon unavailable: %s' % e}, 502)
+    for p in posts:
+        if not p['is_public']:
+            continue
+        if _re.match(r'^\s*free\b', p['title'].replace('️', '').replace(_WIN_MARK, ''), _re.I):
+            b = _bet_from_title(p)
+            b['cached_at'] = _PAT['ts']
+            return _patreon_json(b)
+    return _patreon_json({'error': 'no free pick found'}, 404)
+
+
+@app.route('/patreon/latest-settled', methods=['GET'])
+def patreon_latest_settled():
+    if not PATREON_TOKEN:
+        return _patreon_json({'error': 'PATREON_TOKEN not configured'}, 503)
+    try:
+        posts = _patreon_posts()
+    except Exception as e:
+        return _patreon_json({'error': 'patreon unavailable: %s' % e}, 502)
+    limit = max(1, min(int(request.args.get('limit', 10) or 10), 30))
+    items = []
+    for p in posts:
+        if not p['is_public'] or _WIN_MARK not in p['title']:
+            continue
+        b = _bet_from_title(p)
+        if b['odds'] is None and not b['type'].startswith('System'):
+            continue
+        items.append(b)
+        if len(items) >= limit:
+            break
+    return _patreon_json({'items': items, 'cached_at': _PAT['ts'], 'count': len(items)})
+
+
+if PATREON_TOKEN:
+    # warm the cache at boot so the first site visitor never waits
+    _patreon_refresh(block=False)
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
